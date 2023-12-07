@@ -58,6 +58,7 @@ alex :-
 <0> \% "action"                 { actionty }
 <0> \% "token"                  { tokenty }
 <0> \% "typeclass"              { typeclass }
+<0> \% "language"               { language }
 
 <0> \\ $digit+                  { decch }
 <0> \\ x $hexdig+               { hexch }
@@ -112,6 +113,7 @@ data Tkn
   | RMacDefT String
   | NumT Int
   | WrapperT
+  | LanguageT
   | EncodingT
   | ActionTypeT
   | TokenTypeT
@@ -124,7 +126,7 @@ data Tkn
 
 special, zero, string, bind, escape, decch, hexch, octch, char :: Action
 smac, rmac, smacdef, rmacdef, startcode, wrapper, encoding :: Action
-actionty, tokenty, typeclass :: Action
+actionty, tokenty, typeclass, language :: Action
 special   (p,_,str) _  = return $ T p (SpecialT  (head str))
 zero      (p,_,_)   _  = return $ T p ZeroT
 string    (p,_,str) ln = return $ T p (StringT (extract ln str))
@@ -145,6 +147,7 @@ encoding  (p,_,_)   _  = return $ T p EncodingT
 actionty  (p,_,_)   _  = return $ T p ActionTypeT
 tokenty   (p,_,_)   _  = return $ T p TokenTypeT
 typeclass (p,_,_)   _  = return $ T p TypeClassT
+language  (p,_,_)   _  = return $ T p LanguageT
 
 isIdChar :: Char -> Bool
 isIdChar c = isAlphaNum c || c `elem` "_'"

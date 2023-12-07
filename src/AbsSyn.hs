@@ -41,6 +41,7 @@ type Code = String
 
 data Directive
    = WrapperDirective String            -- use this wrapper
+   | LanguageDirective String           -- use this target language
    | EncodingDirective Encoding         -- use this encoding
    | ActionType String                  -- Type signature of actions,
                                         -- with optional typeclasses
@@ -48,7 +49,7 @@ data Directive
    | TokenType String
    deriving Show
 
-data StrType = Str | Lazy | Strict | StrictText
+data StrType = Str | Lazy | Strict | StrictText | KokaText
   deriving Eq
 
 instance Show StrType where
@@ -56,6 +57,7 @@ instance Show StrType where
   show Lazy = "ByteString.ByteString"
   show Strict = "ByteString.ByteString"
   show StrictText = "Data.Text.Text"
+  show KokaText = "string"
 
 data Scheme
   = Default { defaultTypeInfo :: Maybe (Maybe String, String) }
@@ -306,7 +308,7 @@ bar_ar sc sc' inp = sc inp ++ sc' inp
 
 -- Map the available start codes onto [1..]
 
-encodeStartCodes:: Scanner -> (Scanner,[StartCode],ShowS)
+encodeStartCodes:: Scanner -> (Scanner,[StartCode],Target -> ShowS)
 encodeStartCodes scan = (scan', 0 : map snd name_code_pairs, sc_hdr)
         where
         scan' = scan{ scannerTokens = map mk_re_ctx (scannerTokens scan) }
@@ -317,15 +319,18 @@ encodeStartCodes scan = (scan', 0 : map snd name_code_pairs, sc_hdr)
         mk_sc (nm,_) = (nm, if nm=="0" then 0
                                        else fromJust (Map.lookup nm code_map))
 
-        sc_hdr tl =
+        sc_hdr target tl =
+          case target of
+            KokaTarget -> foldr (\x t -> "val " ++ fmt_sc x t) tl name_code_pairs
+            _ -> 
                 case name_code_pairs of
                   [] -> tl
                   (nm,_):rst -> "\n" ++ nm ++ foldr f t rst
                         where
                         f (nm', _) t' = "," ++ nm' ++ t'
                         t = " :: Int\n" ++ foldr fmt_sc tl name_code_pairs
-                where
-                fmt_sc (nm,sc) t = nm ++ " = " ++ show sc ++ "\n" ++ t
+          where
+          fmt_sc (nm,sc) t = nm ++ " = " ++ show sc ++ "\n" ++ t
 
         code_map = Map.fromList name_code_pairs
 
@@ -344,8 +349,8 @@ encodeStartCodes scan = (scan', 0 : map snd name_code_pairs, sc_hdr)
 -- because the actual action fragments might be duplicated in the
 -- generated file.
 
-extractActions :: Scheme -> Scanner -> (Scanner,ShowS)
-extractActions scheme scanner = (scanner{scannerTokens = new_tokens}, decl_str . nl)
+extractActions :: Target -> Scheme -> Scanner -> (Scanner,ShowS)
+extractActions target scheme scanner = (scanner{scannerTokens = new_tokens}, decl_str . nl)
  where
   (new_tokens, decls) = unzip (zipWith f (scannerTokens scanner) act_names)
 
@@ -358,8 +363,10 @@ extractActions scheme scanner = (scanner{scannerTokens = new_tokens}, decl_str .
       str "AlexPosn -> Char -> String -> Int -> ((Int, state) -> "
     . str res . str ") -> (Int, state) -> " . str res
 
-  mkDecl  fun code = mkTySig fun
-                   . mkDef fun code
+  mkDecl  fun code = 
+    case target of 
+      KokaTarget -> str "val " . mkDef fun code
+      _ -> mkTySig fun . mkDef fun code
 
   mkDef   fun code = str fun . str " = " . str code . nl
 
@@ -414,5 +421,5 @@ extractActions scheme scanner = (scanner{scannerTokens = new_tokens}, decl_str .
 -- -----------------------------------------------------------------------------
 -- Code generation targets
 
-data Target = GhcTarget | HaskellTarget
+data Target = GhcTarget | HaskellTarget | KokaTarget
   deriving Eq

@@ -1,4 +1,4 @@
-ALEX=../dist/build/alex/alex
+ALEX=../.stack-work/dist/x86_64-osx/Cabal-3.6.3.0/build/alex/alex
 HC=ghc -Wall -fno-warn-unused-binds -fno-warn-missing-signatures -fno-warn-unused-matches -fno-warn-name-shadowing -fno-warn-unused-imports -fno-warn-tabs
 
 HAPPY=happy
@@ -14,6 +14,9 @@ PROGS = lit Tokens Tokens_gscan words words_posn words_monad tiny haskell tiger
 
 ALEX_OPTS = --template=../data/ -g
 
+koka.kk: koka.x
+	$(ALEX) -k koka.x --template=../data/ -o $@
+
 %.alex.hs : %.x
 	$(ALEX) $(ALEX_OPTS) $< -o $@
 
@@ -23,7 +26,7 @@ ALEX_OPTS = --template=../data/ -g
 %.o : %.hs
 	$(HC) $(HC_OPTS) -c -o $@ $<
 
-CLEAN_FILES += *.info *.hi *.o *.bin *.exe
+CLEAN_FILES += *.info *.hi *.o *.bin *.exe *.kk
 
 all : $(addsuffix $(exeext),$(PROGS))
 
@@ -56,5 +59,5 @@ tiger$(exeext) : tiger.alex.hs
 
 .PHONY: clean
 clean:
-	rm -f *.o *.hi $(addsuffix $(exeext),$(PROGS)) \
+	rm -f *.o *.hi *.kk $(addsuffix $(exeext),$(PROGS)) \
 		*.alex.hs *.happy.hs

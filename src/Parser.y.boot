@@ -61,6 +61,7 @@ import Data.Char
 	RMAC_DEF	{ T _ (RMacDefT $$) }
 	WRAPPER		{ T _ WrapperT }
 	ENCODING	{ T _ EncodingT }
+	LANGUAGE	{ T _ LanguageT }
         ACTIONTYPE      { T _ ActionTypeT }
         TOKENTYPE       { T _ TokenTypeT }
         TYPECLASS       { T _ TypeClassT }
@@ -81,12 +82,16 @@ directives :: { [Directive] }
 directive  :: { Directive }
 	: WRAPPER STRING		{ WrapperDirective $2 }
 	| ENCODING encoding		{ EncodingDirective $2 }
+	| LANGUAGE language   { LanguageDirective $2 }
         | ACTIONTYPE STRING             { ActionType $2 }
         | TOKENTYPE STRING              { TokenType $2 }
         | TYPECLASS STRING              { TypeClass $2 }
 
 encoding :: { Encoding }
         : STRING         		{% lookupEncoding $1 }
+
+language :: { Language }
+        : STRING         		{% $1 }
 
 macdefs :: { () }
 	: macdef macdefs		{ () }

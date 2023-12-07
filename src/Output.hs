@@ -26,9 +26,26 @@ import Data.Bits
 import Data.Char ( ord, chr )
 import Data.List ( maximumBy, sortBy, mapAccumR )
 import qualified Data.List.NonEmpty as List1
+import Data.Ranged (Boundary(..), Range (Range), RSet (rSetRanges))
 
 -- -----------------------------------------------------------------------------
 -- Printing the output
+
+-- TODO: More efficient generated code!
+charSetQuote :: Target -> CharSet -> String
+charSetQuote target s = "(" ++ lamVar ++ foldr (\x y -> x ++ " || " ++ y) "False" (map quoteRange (rSetRanges s)) ++ ")"
+    where quoteRange (Range l h) = quoteL l ++ " && " ++ quoteH h
+          quoteL (BoundaryAbove a) = "c > " ++ show a
+          quoteL (BoundaryBelow a) = "c >= " ++ show a
+          quoteL (BoundaryAboveAll) = "False"
+          quoteL (BoundaryBelowAll) = "True"
+          quoteH (BoundaryAbove a) = "c <= " ++ show a
+          quoteH (BoundaryBelow a) = "c < " ++ show a
+          quoteH (BoundaryAboveAll) = "True"
+          quoteH (BoundaryBelowAll) = "False"
+          lamVar = case target of
+            KokaTarget -> "fn(c) "
+            _ -> "\\c -> "
 
 outputDFA :: Target -> Int -> String -> Scheme -> DFA SNum Code -> ShowS
 outputDFA target _ _ scheme dfa
@@ -41,6 +58,7 @@ outputDFA target _ _ scheme dfa
     intty = case target of
       GhcTarget -> "Int#"
       HaskellTarget -> "Int"
+      KokaTarget -> "int"
 
     table_size = length table - 1
     n_states   = length base - 1
@@ -59,14 +77,22 @@ outputDFA target _ _ scheme dfa
 
     formatArray :: String -> Int -> [ShowS] -> ShowS
     formatArray constructFunction size contents =
-        str constructFunction
-      . str " (0 :: Int, " . shows size . str ")\n"
-      . str "  [ "
-      . interleave_shows (str "\n  , ") contents
-      . str "\n  ]"
+        case target of 
+          KokaTarget -> 
+            str " [ " . interleave_shows (str ", ") contents . str " ];" 
+          _ -> 
+              str constructFunction
+            . str " (0 :: Int, " . shows size . str ")\n"
+            . str "  [ "
+            . interleave_shows (str "\n  , ") contents
+            . str "\n  ]"
 
     do_array hex_chars nm upper_bound ints = -- trace ("do_array: " ++ nm) $
      case target of
+      KokaTarget ->
+          str "val " . str nm . str " = "
+        . formatArray "array" upper_bound (map shows ints)
+        . nl
       GhcTarget ->
           str nm . str " :: AlexAddr\n"
         . str nm . str " = AlexA#\n"
@@ -83,9 +109,15 @@ outputDFA target _ _ scheme dfa
       -- Don't emit explicit type signature as it contains unknown user type,
       -- see: https://github.com/simonmar/alex/issues/98
       -- str accept_nm . str " :: Array Int (AlexAcc " . str userStateTy . str ")\n"
-        str accept_nm . str " = "
-      . formatArray "Data.Array.listArray" n_states (snd (mapAccumR outputAccs 0 accept))
-      . nl
+      case target of
+        KokaTarget -> 
+            str "val " . str accept_nm . str " = "
+          . formatArray "array" n_states (map shows accept)
+          . nl
+        _ -> 
+          str accept_nm . str " = "
+          . formatArray "Data.Array.listArray" n_states (snd (mapAccumR outputAccs 0 accept))
+          . nl
 
     gscanActionType res =
         str "AlexPosn -> Char -> String -> Int -> ((Int, state) -> "
@@ -97,7 +129,9 @@ outputDFA target _ _ scheme dfa
         actionsArray :: ShowS
         actionsArray = formatArray "Data.Array.array" nacts (concat acts)
         body :: ShowS
-        body = str actions_nm . str " = " . actionsArray . nl
+        body = case target of 
+          KokaTarget -> str "val " . str actions_nm . str " = " . actionsArray . nl
+          _ -> str actions_nm . str " = " . actionsArray . nl
         signature :: ShowS
         signature = case scheme of
           Default { defaultTypeInfo = Just (Nothing, actionty) } ->
@@ -314,7 +348,7 @@ outputDFA target _ _ scheme dfa
         . str " `alexAndPred` "
         . outputRCtx rctx
 
-    outputLCtx set = str "alexPrevCharMatches" . str (charSetQuote set)
+    outputLCtx set = str "alexPrevCharMatches" . str (charSetQuote target set)
 
     outputRCtx NoRightContext = id
     outputRCtx (RightContextRExp sn)
