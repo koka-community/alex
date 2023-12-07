@@ -16,6 +16,7 @@ ALEX_OPTS = --template=../data/ -g
 
 koka.kk: koka.x
 	$(ALEX) -k koka.x --template=../data/ -o $@
+	cp $@ $(HOME)/koka_code/compiler/syntax/lexer3.kk
 
 %.alex.hs : %.x
 	$(ALEX) $(ALEX_OPTS) $< -o $@

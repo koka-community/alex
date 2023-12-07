@@ -1,3 +1,7 @@
+/// LINE 1 "koka.x"
+import compiler/common/name
+import compiler/common/range
+import compiler/syntax/lexeme
 val alex_tab_size = 8
 val alex_base =  [ -8, 110, 346, 582, 817, 1053, 109, 425, 661, 896, 1132, 1250, 0, 1274, 0, 0, 1267, 1331, 1395, 0, -7, 1577, 0, -5, -33, 1694, -32, 0, -31, 0, 1273, 1656, -1, 1758, 1822, 1886, 1918, 1, -4, 1966, 2030, 2062, 2126, 2190, 2254, 2318, 2462, 2485, 2523, 2546, -29, 0, 2570, -27, 0, -21, 2644, 0, 0, 2734, 2769, 2804, 2864, -26, 2899, 2934, -24, 0, 2969, 3004, 1266, 312, 2580, 3020, 3083, 3148, 453, 463, 3171, 480, 551, 684, 694, 0, 3236, 3320, 3404, 3494, 3529, -23, 0, 3559, 3642, 3726, 3816, 3851, 3886, -20, -13, 3636, 0, 0, 10, -17, 0, 3885, 3949, 450, 4013, 4077, 4141, 4173, 717, -16, 3902, 718, 4237, 4269, 4333, 4381, 703, 4445, 0, 0, 0, 46, 0, 4509, 4573, 4637, 4701, 4765, 4797, 4861, 4893, 4957, 5005, 839, 5069, 0, 0, 41, 0, 0, 0, 79, 0, 0, 87, 0, 5133, 5197, 5261, 5325, 5389, 5421, 5485, 5517, 5581, 5629, 939, 5693, 5846, 5910, 5942, 6006, 6159, 2742, 6223, 6287, 0, 0, 0, 130, 0, 6351, 6415, 5726, 6071, 6479, 6543, 6591, 1075 ];
 
@@ -214,7 +218,7 @@ inline fun alexRightContext(sc:int, user__, _, _, input__)
         // match when checking the right context, just
         // the first match will do.
 
-/// LINE 196 "koka.x"
+/// LINE 202 "koka.x"
 struct state
      pos: pos
      startPos: pos
@@ -232,8 +236,8 @@ fun token(lex)
 
 fun next(state, action)
   fn(bs) fn(st0) fn(st1)
-     val (x, st2) = action(bs)(st0)(st1)
-     (x, st2(states=Cons(state, st2.states)))
+     val (x, State(p, sp, sts, ret, prev, cur, pL, rE)) = action(bs)(st0)(st1)
+     (x, State(p, sp, Cons(state, sts), ret, prev, cur, pL, rE))
 
 fun push(action)
   fn(bs) fn(st0) fn(st1)
@@ -243,25 +247,28 @@ fun pop(action)
   fn(bs) fn(st0) fn(st1)
     val sts = st1.states.tail
     val sts' = if sts.is-nil then [0] else sts
-    val (x, st2) = action(sts'.head)(bs)(st0)(st1)
-    (x, st2(states=sts'))
+    val (x, State(p, sp, _, ret, prev, cur, pL, rE)) = action(sts'.head)(bs)(st0)(st1)
+    (x, State(p, sp, sts', ret, prev, cur, pL, rE))
 
 fun more(f)
-  fn(bs) fn(st0) fn(st1) (Nothing, st1(retained=f(bs) ++ st1.retained))
+  fn(bs) fn(st0) fn(State(p, sp, sts, ret, prev, cur, pL, rE)) (Nothing, State(p, sp, sts, f(bs) ++ ret, prev, cur, pL, rE))
 
 fun less(n, action)
-  fn(bs) fn(st0) fn(st1)
+  fn(bs) fn(st0) fn(State(_, sp, sts, ret, prev, _, pL, rE))
     val bs2 = st0.current.take(n)
     val pos2 = bs2.posMoves8(st0.pos)
-    val st2 = st1(pos=pos2, current=st0.current.drop(n))
+    val st2 = State(pos2, sp, sts, ret, prev, st0.current.drop(n), pL, rE)
     action(bs2)(st0)(st2)
 
 fun withmore(action)
-  fn(bs) fn(st0) fn(st1)
-    action((bs ++ st1.retained).reverse.concat)(st0)(st1(retained=[]))
+  fn(bs) fn(st0) fn(State(p, sp, sts, ret, prev, cur, pL, rE))
+    action((bs ++ ret).reverse.concat)(st0)(State(p, sp, sts, [], prev, cur, pL, rE))
 
 fun withRawDelim(f)
   fn(bs) fn(st0) fn(st1)
     f(bs.string, st1.rawEnd)(bs)(st0)(st1)
 
 alias alexInput = state
+
+fun unsafeChar(kind: string, s: string)
+  LexError("unsafe character in " ++ kind ++ ": " ++ s.head) // TODO: Fix this

@@ -1,3 +1,9 @@
+{
+import compiler/common/name
+import compiler/common/range
+import compiler/syntax/lexeme
+}
+
 %encoding "latin1"
 
 -----------------------------------------------------------
@@ -211,8 +217,8 @@ fun token(lex)
 
 fun next(state, action)
   fn(bs) fn(st0) fn(st1)
-     val (x, st2) = action(bs)(st0)(st1)
-     (x, st2(states=Cons(state, st2.states)))
+     val (x, State(p, sp, sts, ret, prev, cur, pL, rE)) = action(bs)(st0)(st1)
+     (x, State(p, sp, Cons(state, sts), ret, prev, cur, pL, rE))
 
 fun push(action)
   fn(bs) fn(st0) fn(st1)
@@ -222,26 +228,29 @@ fun pop(action)
   fn(bs) fn(st0) fn(st1)
     val sts = st1.states.tail
     val sts' = if sts.is-nil then [0] else sts
-    val (x, st2) = action(sts'.head)(bs)(st0)(st1)
-    (x, st2(states=sts'))
+    val (x, State(p, sp, _, ret, prev, cur, pL, rE)) = action(sts'.head)(bs)(st0)(st1)
+    (x, State(p, sp, sts', ret, prev, cur, pL, rE))
 
 fun more(f)
-  fn(bs) fn(st0) fn(st1) (Nothing, st1(retained=f(bs) ++ st1.retained))
+  fn(bs) fn(st0) fn(State(p, sp, sts, ret, prev, cur, pL, rE)) (Nothing, State(p, sp, sts, f(bs) ++ ret, prev, cur, pL, rE))
 
 fun less(n, action)
-  fn(bs) fn(st0) fn(st1)
+  fn(bs) fn(st0) fn(State(_, sp, sts, ret, prev, _, pL, rE))
     val bs2 = st0.current.take(n)
     val pos2 = bs2.posMoves8(st0.pos)
-    val st2 = st1(pos=pos2, current=st0.current.drop(n))
+    val st2 = State(pos2, sp, sts, ret, prev, st0.current.drop(n), pL, rE)
     action(bs2)(st0)(st2)
 
 fun withmore(action)
-  fn(bs) fn(st0) fn(st1)
-    action((bs ++ st1.retained).reverse.concat)(st0)(st1(retained=[]))
+  fn(bs: sslice) fn(st0) fn(State(p, sp, sts, ret, prev, cur, pL, rE))
+    action((bs.string ++ ret.string).reverse.concat.slice)(st0)(State(p, sp, sts, [], prev, cur, pL, rE))
 
 fun withRawDelim(f)
   fn(bs) fn(st0) fn(st1)
     f(bs.string, st1.rawEnd)(bs)(st0)(st1)
 
 alias alexInput = state
+
+fun unsafeChar(kind: string, s: string)
+  LexError("unsafe character in " ++ kind ++ ": " ++ s.head) // TODO: Fix this
 }
