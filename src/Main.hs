@@ -202,7 +202,7 @@ alex cli file basename script = do
    -- Inject the tab size
    case target of
      KokaTarget -> do
-      hPutStrLn out_h $ "val alex_tab_size = " ++ show (tab_size :: Int)
+      hPutStrLn out_h $ "val alex_tab_size:int = " ++ show (tab_size :: Int)
      _ -> do
       hPutStrLn out_h $ "alex_tab_size :: Int"
       hPutStrLn out_h $ "alex_tab_size = " ++ show (tab_size :: Int)

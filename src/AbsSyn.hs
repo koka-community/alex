@@ -368,7 +368,10 @@ extractActions target scheme scanner = (scanner{scannerTokens = new_tokens}, dec
       KokaTarget -> str "val " . mkDef fun code
       _ -> mkTySig fun . mkDef fun code
 
-  mkDef   fun code = str fun . str " = " . str code . nl
+  mkDef   fun code = 
+    case target of
+      KokaTarget -> str fun . str ": action = " . str code . nl
+      _ -> str fun . str " = " . str code . nl
 
   mkTySig fun = case scheme of
     Default { defaultTypeInfo = Just (Nothing, actionty) } -> nl .

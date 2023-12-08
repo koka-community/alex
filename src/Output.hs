@@ -90,7 +90,7 @@ outputDFA target _ _ scheme dfa
     do_array hex_chars nm upper_bound ints = -- trace ("do_array: " ++ nm) $
      case target of
       KokaTarget ->
-          str "val " . str nm . str " = "
+          str "val " . str nm . str " : list<int> = "
         . formatArray "array" upper_bound (map shows ints)
         . nl
       GhcTarget ->
@@ -111,7 +111,7 @@ outputDFA target _ _ scheme dfa
       -- str accept_nm . str " :: Array Int (AlexAcc " . str userStateTy . str ")\n"
       case target of
         KokaTarget -> 
-            str "val " . str accept_nm . str " = "
+            str "val " . str accept_nm . str ": list<list<int>> = "
           . formatArray "array" n_states (map shows accept)
           . nl
         _ -> 
@@ -130,7 +130,7 @@ outputDFA target _ _ scheme dfa
         actionsArray = formatArray "Data.Array.array" nacts (concat acts)
         body :: ShowS
         body = case target of 
-          KokaTarget -> str "val " . str actions_nm . str " = " . actionsArray . nl
+          KokaTarget -> str "val " . str actions_nm . str " : list<(int,action)> = " . actionsArray . nl
           _ -> str actions_nm . str " = " . actionsArray . nl
         signature :: ShowS
         signature = case scheme of
