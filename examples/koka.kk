@@ -78,8 +78,8 @@ val alex_action_36: action = withRawDelim(fn(s, delim) {
                             )
 val alex_action_37: action = fn(s) token(LexError("illegal character in raw string: " ++ s.show))
 val alex_action_38: action = pop(fn(state: int) { 
-  if state==comment then more(id)
-  else withmore(fn(s) token(LexComment(s.string.filter(fn(c) c != '\r')))) 
+    if state == comment then more(id)
+    else withmore(fn(s: sslice) token(LexComment(s.string.list.filter(fn(c) c != '\r').string))) 
 } )
 val alex_action_39: action = push(more(id))
 val alex_action_40: action = fn(s: sslice) token(unsafeChar("comment", s))
@@ -88,11 +88,15 @@ val alex_action_42: action = more(id)
 val alex_action_43: action = fn(s: sslice) token(LexError("illegal character in comment: " ++ s.show))
 val alex_action_44: action = fn(s: sslice) token(unsafeChar("line comment", s))
 val alex_action_45: action = more(id)
-val alex_action_46: action = pop(fn(_) withmore(fn(s) token(LexComment(s.string.filter(fn(c) c !='\r')))))
+val alex_action_46: action = pop(fn(_) {
+      withmore(fn(s) {
+        token(LexComment(s.string.list.filter(fn(c) c !='\r').string))
+        })
+    })
 val alex_action_47: action = fn(s: sslice) token(LexError("illegal character in line comment: " ++ s.show))
 val alex_action_48: action = fn(s: sslice) token(unsafeChar("line directive", s))
 val alex_action_49: action = more(id)
-val alex_action_50: action = pop(fn(_) withmore(fn(s: sslice) token(LexComment(s.string.filter(fn(c) c !='\r')))))
+val alex_action_50: action = pop(fn(_) withmore(fn(s: sslice) token(LexComment(s.string.list.filter(fn(c) c !='\r').string))))
 val alex_action_51: action = fn(s: sslice) token(LexError("illegal character in line directive: " ++ s.show))
 
 // -----------------------------------------------------------------------------
@@ -223,7 +227,7 @@ inline fun alexRightContext(sc:int, user__, _, _, input__)
         // match when checking the right context, just
         // the first match will do.
 
-/// LINE 207 "koka.x"
+/// LINE 213 "koka.x"
 struct state
      pos: pos
      startPos: pos

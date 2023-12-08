@@ -176,9 +176,10 @@ program :-
 --------------------------
 -- block comments
 
-<comment> "*/"            { pop(fn(state: int) { 
-  if state==comment then more(id)
-  else withmore(fn(s) token(LexComment(s.string.filter(fn(c) c != '\r')))) 
+<comment> "*/"            { 
+  pop(fn(state: int) { 
+    if state == comment then more(id)
+    else withmore(fn(s: sslice) token(LexComment(s.string.list.filter(fn(c) c != '\r').string))) 
 } ) }
 <comment> "/*"            { push(more(id)) }
 <comment> @utf8unsafe     { fn(s: sslice) token(unsafeChar("comment", s)) }
@@ -191,7 +192,12 @@ program :-
 
 <linecom> @utf8unsafe     { fn(s: sslice) token(unsafeChar("line comment", s)) }
 <linecom> @linechar       { more(id) }
-<linecom> @newline        { pop(fn(_) withmore(fn(s) token(LexComment(s.string.filter(fn(c) c !='\r'))))) }
+<linecom> @newline        { pop(fn(_) {
+      withmore(fn(s) {
+        token(LexComment(s.string.list.filter(fn(c) c !='\r').string))
+        })
+    }) 
+ }
 <linecom> .               { fn(s: sslice) token(LexError("illegal character in line comment: " ++ s.show)) }
 
 --------------------------
@@ -199,7 +205,7 @@ program :-
 
 <linedir> @utf8unsafe     { fn(s: sslice) token(unsafeChar("line directive", s)) }
 <linedir> @linechar       { more(id) }
-<linedir> @newline        { pop(fn(_) withmore(fn(s: sslice) token(LexComment(s.string.filter(fn(c) c !='\r'))))) }
+<linedir> @newline        { pop(fn(_) withmore(fn(s: sslice) token(LexComment(s.string.list.filter(fn(c) c !='\r').string)))) }
 <linedir> .               { fn(s: sslice) token(LexError("illegal character in line directive: " ++ s.show)) }
 
 -- TODO: Add helper functions
