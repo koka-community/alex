@@ -62,3 +62,4 @@ tiger$(exeext) : tiger.alex.hs
 clean:
 	rm -f *.o *.hi *.kk $(addsuffix $(exeext),$(PROGS)) \
 		*.alex.hs *.happy.hs
+	rm -f $(HOME)/koka_code/compiler/syntax/lexer3.kk

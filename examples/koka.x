@@ -3,6 +3,7 @@ import compiler/common/name
 import compiler/common/range
 import compiler/syntax/lexeme
 import compiler/syntax/lex-help
+import std/num/float64
 }
 
 %encoding "utf8"
@@ -89,89 +90,86 @@ $charesc      = [nrt\\\'\"]    -- "
 -----------------------------------------------------------
 program :-
 -- white space
-<0> $space+               { fn(s: sslice) token(LexWhite(s)) }
-<0> @newline              { fn(_: sslice) token(LexWhite("\n")) }
+<0> $space+               { string(fn(s: string) LexWhite(s)) }
+<0> @newline              { string(fn(_: string) LexWhite("\n")) }
 <0> "/*" $symbol*         { fn(_: sslice) next(comment, more(id)) }
 <0> "//" $symbol*         { fn(_: sslice) next(linecom, more(id)) }
 <0> @newline\# $symbol*   { fn(_: sslice) next(linedir, more(id)) }
 
 
 -- qualified identifiers
-<0> @qconid               { fn(s: sslice) token(LexCons(s.newQName)) }
-<0> @qvarid               { fn(s: sslice) token(LexId(s.newQName)) }
-<0> @qidop                { fn(s: sslice) token(LexIdOp(s.stripParens.newQName)) }
+<0> @qconid               { string(fn(s: string) LexCons(s.newQName)) }
+<0> @qvarid               { string(fn(s: string) LexId(s.newQName)) }
+<0> @qidop                { token(fn(s: sslice) LexIdOp(s.strip-parens.newQName)) }
 
 -- identifiers
-<0> @lowerid              { fn(s': sslice) {
-    val s = s'.string;
-    if s.isReserved then token(LexKeyword(s, ""))
-    elif s.isMalformed then token(LexError(messageMalformed))
-    else token(LexId(s.newName)) 
-  } }
-<0> @conid                { fn(s: sslice) token(LexCons(s.newName)) }
-<0> _@idchar*             { fn(s: sslice) token(LexWildCard(s.newName)) }
+<0> @lowerid              { string(fn(s: string) {
+    if s.is-reserved then LexKeyword(s, "")
+    elif s.is-malformed then LexError(message-malformed)
+    else LexId(s.newName)
+  }) }
+<0> @conid                { string(fn(s: string) LexCons(s.newName)) }
+<0> _@idchar*             { string(fn(s: string) LexWildCard(s.newName)) }
 
 -- specials
-<0> $special              { fn(s: sslice) token(LexSpecial(s)) }
+<0> $special              { string(fn(s: string) LexSpecial(s)) }
 
 -- literals
-<0> @decfloat             { fn(s': sslice) {val s = s'.string; token(LexFloat(s.parseFloat)) } }
-<0> @hexfloat             { fn(s': sslice) {val s = s'.string; token(LexFloat(s.parseFloat)) } }
-<0> @integer              { fn(s': sslice) {val s = s'.string; token(LexInt(s.parseInt)) } }
+<0> @decfloat             { string(fn(s: string) LexFloat(s.parse-float64.unjust, s)) }
+<0> @hexfloat             { string(fn(s: string) LexFloat(s.parse-float64.unjust, s)) }
+<0> @integer              { string(fn(s: string) LexInt(s.parse-int.unjust, s)) }
 
 
 -- type operators
-<0> "||"                  { fn(s: sslice) token(LexOp(s.newName)) }
-<0> $anglebar $anglebar+  { less(1, fn(s': sslice) {val s = s'.string; if (s=="|") then token(LexKeyword(s, "")) else token(LexOp(s.newName)) } ) }
+<0> "||"                  { string(fn(s: string) LexOp(s.newName)) }
+<0> $anglebar $anglebar+  { less(1, string(fn(s) if (s=="|") then LexKeyword(s, "") else LexOp(s.newName))) }
 
 -- operators
-<0> @idop                 { fn(s: sslice) token(LexIdOp(s.stripParens.newName)) }
-<0> @symbols              { fn(s': sslice) 
-  {
-    val s = s'.string; 
-    if s.isReserved then token(LexKeyword(s,""))
-    elif s.isPrefixOp then token(LexPrefix(s.newName))
-    else token(LexOp(s.newName)) 
-  } }
+<0> @idop                 { token(fn(s: sslice) LexIdOp(s.strip-parens.newName)) }
+<0> @symbols              { string(fn(s: string) {    
+    if s.is-reserved then LexKeyword(s,"")
+    elif s.is-prefix-op then LexPrefix(s.newName)
+    else LexOp(s.newName)
+  }) }
 
 
 -- characters
 <0> \"                    { next(stringlit, more(fn(_) "")) }  -- "
 <0> r\#*\"                { next(stringraw, rawdelim(more, fn(_) "")) }  -- "
 
-<0> \'\\$charesc\'        { fn(s: sslice) token(LexChar(s.drop(2).head.fromCharEsc)) }
-<0> \'\\@hexesc\'         { fn(s: sslice) token(LexChar(s.drop(3).init.fromHexEsc)) }
-<0> \'@charchar\'         { fn(s: sslice) token(LexChar(s.tail.head)) }
-<0> \'.\'                 { fn(s: sslice) token(LexError("illegal character literal: " ++ s.tail.head.show)) }
+<0> \'\\$charesc\'        { token(fn(s:sslice) LexChar(s.sslice/drop(2).next.unjust.tuple2/fst.char/from-char-esc)) }
+<0> \'\\@hexesc\'         { token(fn(s:sslice) LexChar(s.sslice/drop(3).extend(-1).char/from-hex-esc)) }
+<0> \'@charchar\'         { token(fn(s:sslice) LexChar(s.sslice/drop(1).next.unjust.tuple2/fst)) }
+<0> \'.\'                 { token(fn(s:sslice) LexError("illegal character literal: " ++ s.sslice/drop(1).next.map(tuple2/fst).default(' ').show)) }
 
 -- catch errors
-<0> $tab+                 { fn(s: sslice) token(LexError("tab characters: configure your editor to use spaces instead (soft tab)")) }
-<0> .                     { fn(s: sslice) token(LexError("illegal character: " ++ s.show ++ (if (s=="\t") then " (replace tabs with spaces)" else ""))) }
+<0> $tab+                 { token(fn(s:sslice) LexError("tab characters: configure your editor to use spaces instead (soft tab)")) }
+<0> .                     { string(fn(s:string) LexError("illegal character: " ++ s.show ++ (if (s=="\t") then " (replace tabs with spaces)" else ""))) }
 
 --------------------------
 -- string literals
 
-<stringlit> @utf8unsafe   { fn(s: sslice) unsafeChar("string", s) }
+<stringlit> @utf8unsafe   { string(fn(s: string) unsafe-char("string", s)) }
 <stringlit> @stringchar   { more(id) }
-<stringlit> \\$charesc    { more(fromCharEscB) }
-<stringlit> \\@hexesc     { more(fromHexEscB) }
-<stringlit> \"            { pop(fn(_) withmore(fn(s) token(LexString(s.init)))) } -- "
-<stringlit> @newline      { pop(fn(_) fn(_) token(LexError("string literal ended by a new line"))) }
-<stringlit> .             { fn(s: sslice) token(LexError("illegal character in string: " ++ s.show)) }
+<stringlit> \\$charesc    { more(sslice/from-char-esc) }
+<stringlit> \\@hexesc     { more(sslice/from-hex-esc) }
+<stringlit> \"            { pop(fn(_) withmore(token(fn(s) LexString(s.extend(-1).string)))) } -- "
+<stringlit> @newline      { pop(fn(_) token(fn(_) LexError("string literal ended by a new line"))) }
+<stringlit> .             { token(fn(s: sslice) LexError("illegal character in string: " ++ s.show)) }
 
-<stringraw> @utf8unsafe   { fn(s: sslice) token(unsafeChar("raw string", s)) }
+<stringraw> @utf8unsafe   { string(fn(s: string) unsafe-char("raw string", s)) }
 <stringraw> @stringraw    { more(id) }
-<stringraw> \"\#*         { withRawDelim(fn(s, delim) {
+<stringraw> \"\#*         { with-raw-delim(fn(s:string, delim:string) {
                               if (s == delim) then  //  done
-                                pop(fn(_) less(delim.length, withmore(fn(s) token(LexString(s.string.reverse.drop(delim.length).reverse)))))                              
-                              elif (s.length > delim.length) then  // too many terminating hashse
-                                fn(s) token(LexError("raw string: too many '#' terminators in raw string (expecting " ++ show(delim.length - 1) ++ ")"))
+                                pop(fn(_) less(delim.count, withmore(token(fn(s') LexString(s'.extend(0 - delim.count).string)))))                              
+                              elif (s.count > delim.count) then  // too many terminating hashes
+                                token(fn(s') LexError("raw string: too many '#' terminators in raw string (expecting " ++ show(delim.count - 1) ++ ")"))
                               else // continue
                                  more(id)
                               }
                             ) 
                           }
-<stringraw> .             { fn(s) token(LexError("illegal character in raw string: " ++ s.show)) }
+<stringraw> .             { token(fn(s:sslice) LexError("illegal character in raw string: " ++ s.show)) }
 
 
 --------------------------
@@ -180,34 +178,32 @@ program :-
 <comment> "*/"            { 
   pop(fn(state: int) { 
     if state == comment then more(id)
-    else withmore(fn(s: sslice) token(LexComment(s.string.list.filter(fn(c) c != '\r').string))) 
+    else withmore(token(fn(s: sslice) LexComment(s.string.list.filter(fn(c) c != '\r').string))) 
 } ) }
 <comment> "/*"            { push(more(id)) }
-<comment> @utf8unsafe     { fn(s: sslice) token(unsafeChar("comment", s)) }
+<comment> @utf8unsafe     { string(fn(s: string) unsafe-char("comment", s)) }
 <comment> @commentchar    { more(id) }
 <comment> [\/\*]          { more(id) }
-<comment> .               { fn(s: sslice) token(LexError("illegal character in comment: " ++ s.show)) }
+<comment> .               { token(fn(s: sslice) LexError("illegal character in comment: " ++ s.show)) }
 
 --------------------------
 -- line comments
 
-<linecom> @utf8unsafe     { fn(s: sslice) token(unsafeChar("line comment", s)) }
+<linecom> @utf8unsafe     { string(fn(s: string) unsafe-char("line comment", s)) }
 <linecom> @linechar       { more(id) }
 <linecom> @newline        { pop(fn(_) {
-      withmore(fn(s) {
-        token(LexComment(s.string.list.filter(fn(c) c !='\r').string))
-        })
+      withmore(string(fn(s:string) LexComment(s.list.filter(fn(c) c !='\r').string)))
     }) 
  }
-<linecom> .               { fn(s: sslice) token(LexError("illegal character in line comment: " ++ s.show)) }
+<linecom> .               { string(fn(s: string) LexError("illegal character in line comment: " ++ s.show)) }
 
 --------------------------
 -- line directives (ignored for now)
 
-<linedir> @utf8unsafe     { fn(s: sslice) token(unsafeChar("line directive", s)) }
+<linedir> @utf8unsafe     { string(fn(s: string) unsafe-char("line directive", s)) }
 <linedir> @linechar       { more(id) }
-<linedir> @newline        { pop(fn(_) withmore(fn(s: sslice) token(LexComment(s.string.list.filter(fn(c) c !='\r').string)))) }
-<linedir> .               { fn(s: sslice) token(LexError("illegal character in line directive: " ++ s.show)) }
+<linedir> @newline        { pop(fn(_) withmore(string(fn(s: string) LexComment(s.list.filter(fn(c) c !='\r').string)))) }
+<linedir> .               { string(fn(s: string) LexError("illegal character in line directive: " ++ s.show)) }
 
 -- TODO: Add helper functions
 
