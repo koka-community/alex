@@ -2,6 +2,7 @@
 import compiler/common/name
 import compiler/common/range
 import compiler/syntax/lexeme
+import compiler/syntax/lex-help
 }
 
 %encoding "utf8"
