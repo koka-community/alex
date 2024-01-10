@@ -4,7 +4,7 @@ import compiler/common/range
 import compiler/syntax/lexeme
 }
 
-%encoding "latin1"
+%encoding "utf8"
 
 -----------------------------------------------------------
 -- Character sets
@@ -211,64 +211,4 @@ program :-
 -- TODO: Add helper functions
 
 {
-
-struct state
-     pos: pos
-     startPos: pos
-     states: list<int>
-     retained: list<sslice>
-     previous: char
-     current: sslice
-     previousLex: lex
-     rawEnd: string;
-
-alias action = sslice -> pure (state -> pure (state -> pure (maybe<lex>, state)));
-
-fun head(s: list<a>): exn a
-  match s
-    Cons(x, _) -> x
-    Nil -> throw("head")
-
-fun token(lex: (sslice -> pure lex)): action
-  fn(bs: sslice) fn(st0: state) fn(st1: state) (Just(lex(bs)), st1)
-
-fun next(state: int, action: action): action
-  fn(bs: sslice) fn(st0: state) fn(st1: state)
-     val (x, State(p, sp, sts, ret, prev, cur, pL, rE)) = action(bs)(st0)(st1)
-     (x, State(p, sp, Cons(state, sts), ret, prev, cur, pL, rE))
-
-fun push(action: action): action
-  fn(bs: sslice) fn(st0: state) fn(st1: state)
-     next(st1.head)(action)(bs)(st0)(st1)
-
-fun pop(action: action): action
-  fn(bs: sslice) fn(st0: state) fn(st1: state)
-    val sts = st1.states.tail
-    val sts' = if sts.is-nil then [0] else sts
-    val (x, State(p, sp, _, ret, prev, cur, pL, rE)) = action(sts'.head)(bs)(st0)(st1)
-    (x, State(p, sp, sts', ret, prev, cur, pL, rE))
-
-fun more(f: (sslice -> pure sslice)): action
-  fn(bs: sslice) fn(st0: state) fn(State(p, sp, sts, ret, prev, cur, pL, rE): state) 
-    (Nothing, State(p, sp, sts, Cons(f(bs), ret), prev, cur, pL, rE))
-
-fun less(n: int, action: action)
-  fn(bs: sslice) fn(st0: state) fn(State(_, sp, sts, ret, prev, _, pL, rE): state)
-    val bs2 = st0.current.take(n)
-    val pos2 = bs2.posMoves8(st0.pos)
-    val st2 = State(pos2, sp, sts, ret, prev, st0.current.drop(n), pL, rE)
-    action(bs2)(st0)(st2)
-
-fun withmore(action: action)
-  fn(bs: sslice) fn(st0: state) fn(State(p, sp, sts, ret, prev, cur, pL, rE): state)
-    action(Cons(bs, ret).reverse.map(string).join("").slice)(st0)(State(p, sp, sts, [], prev, cur, pL, rE))
-
-fun withRawDelim(f: (string, string) -> pure action): action
-  fn(bs: sslice) fn(st0: state) fn(st1: state)
-    f(bs.string, st1.rawEnd)(bs)(st0)(st1)
-
-alias alexInput = state
-
-fun unsafeChar(kind: string, s: string)
-  LexError("unsafe character in " ++ kind ++ ": " ++ s.head) // TODO: Fix this
 }
