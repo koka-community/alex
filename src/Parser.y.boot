@@ -82,16 +82,13 @@ directives :: { [Directive] }
 directive  :: { Directive }
 	: WRAPPER STRING		{ WrapperDirective $2 }
 	| ENCODING encoding		{ EncodingDirective $2 }
-	| LANGUAGE language   { LanguageDirective $2 }
+	| LANGUAGE STRING   { LanguageDirective $2 }
         | ACTIONTYPE STRING             { ActionType $2 }
         | TOKENTYPE STRING              { TokenType $2 }
         | TYPECLASS STRING              { TypeClass $2 }
 
 encoding :: { Encoding }
         : STRING         		{% lookupEncoding $1 }
-
-language :: { Language }
-        : STRING         		{% $1 }
 
 macdefs :: { () }
 	: macdef macdefs		{ () }
