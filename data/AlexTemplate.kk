@@ -10,8 +10,8 @@
 type alexReturn
   AlexEOF
   AlexError(i: alexInput)
-  AlexSkip(i: alexInput, n: int32)
-  AlexToken(i: alexInput, n: int32, a: action) // a is the action type
+  AlexSkip(i: alexInput, n: int)
+  AlexToken(i: alexInput, n: int, a: (int,action)) // a is the action type
 
 // alexScan :: AlexInput -> StartCode -> AlexReturn a
 fun alexScan(input: alexInput, sc: int): <pure|e> alexReturn
@@ -31,8 +31,8 @@ fun alexScanUser(user: maybe<a>, input: alexInput, sc: int): <pure|e> alexReturn
       trace("Skipping.") 
       AlexSkip(input__'', len)
     (AlexLastAcc(k, input__''', len), _) ->
-      trace ("Accept.")
-      AlexToken(input__''', len, alex_actions[k])
+      trace("Accept.")
+      AlexToken(input__''', len, alex_actions.unsafe-idx(k.ssize_t))
 
 inline extern unsafe-idx( ^v : vector<a>, index : ssize_t ) : total a
   c  "kk_vector_at_borrow"
@@ -42,31 +42,30 @@ inline extern unsafe-idx( ^v : vector<a>, index : ssize_t ) : total a
 // Push the input through the DFA, remembering the most recent accepting
 // state it encountered.
 fun alex_scan_tkn(user__:maybe<a>, orig_input:alexInput, len:int, input__:alexInput, s: int, last_acc)
-  fun check_accs(acc: alexAcc<u,e>)
+  fun check_accs(acc: some<a> alexAcc<a,e>): e alexLastAcc
     match acc
       AlexAccNone -> last_acc
       AlexAcc(a) -> AlexLastAcc(a, input__, len)
       AlexAccSkip -> AlexLastSkip(input__, len)
       AlexAccPred(a, predx, rest)
-            -> if predx(user__, orig_input, len, input__) then AlexLastAcc(a, input__, len)
-            else check_accs(rest)
+        -> if predx(user__, orig_input, len, input__) then AlexLastAcc(a, input__, len)
+           else check_accs(rest)
       AlexAccSkipPred(predx, rest)
-        | predx(user__, orig_input, len, input__)
-            -> AlexLastSkip(input__, len)
-        | True -> check_accs(rest)
-  val new_acc = check_accs(alex_accept.unsafe-idx(s))
+        -> if predx(user__, orig_input, len, input__) then AlexLastSkip(input__, len)
+           else check_accs(rest)
+  val new_acc = check_accs(alex_accept.unsafe-idx(s.ssize_t))
   match alexGetByte(input__)
      Nothing -> (new_acc, input__)
-     Just (c, new_input) ->
+     Just((c, new_input)) ->
        trace("State: " ++ s.show ++ ", char: " ++ c.show)
        match c.int
         ord_c ->
-          val base = alex_base.unsafe-idx(s)
+          val base = alex_base.unsafe-idx(s.ssize_t)
           val offset = base + ord_c
-          val check  = alex_check.unsafe-idx(offset)
+          val check  = alex_check.unsafe-idx(offset.ssize_t)
           val new_s = if offset > 0 && check == ord_c
-                          then alex_table.unsafe-idx(offset)
-                          else alex_deflt.unsafe-idx(s)
+                          then alex_table.unsafe-idx(offset.ssize_t)
+                          else alex_deflt.unsafe-idx(s.ssize_t)
         
           match new_s
               -1 -> (new_acc, input__)
