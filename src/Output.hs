@@ -79,7 +79,7 @@ outputDFA target _ _ scheme dfa
     formatArray constructFunction size contents =
         case target of 
           KokaTarget -> 
-            str " [ " . interleave_shows (str ", ") contents . str " ];" 
+            str " [ " . interleave_shows (str ", ") contents . str " ].vector;" 
           _ -> 
               str constructFunction
             . str " (0 :: Int, " . shows size . str ")\n"
@@ -90,7 +90,7 @@ outputDFA target _ _ scheme dfa
     do_array hex_chars nm upper_bound ints = -- trace ("do_array: " ++ nm) $
      case target of
       KokaTarget ->
-          str "val " . str nm . str " : list<int> = "
+          str "val " . str nm . str " : vector<int> = "
         . formatArray "array" upper_bound (map shows ints)
         . nl
       GhcTarget ->
@@ -130,7 +130,7 @@ outputDFA target _ _ scheme dfa
         actionsArray = formatArray "Data.Array.array" nacts (concat acts)
         body :: ShowS
         body = case target of 
-          KokaTarget -> str "val " . str actions_nm . str " : list<(int,action)> = " . actionsArray . nl
+          KokaTarget -> str "val " . str actions_nm . str " : vector<(int,action)> = " . actionsArray . nl
           _ -> str actions_nm . str " = " . actionsArray . nl
         signature :: ShowS
         signature = case scheme of
