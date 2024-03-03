@@ -87,6 +87,11 @@ outputDFA target _ _ scheme dfa
             . interleave_shows (str "\n  , ") contents
             . str "\n  ]"
 
+    formatKokaList contents =
+        case target of 
+          KokaTarget -> 
+            str " [ " . interleave_shows (str ", ") contents . str " ]" 
+
     do_array hex_chars nm upper_bound ints = -- trace ("do_array: " ++ nm) $
      case target of
       KokaTarget ->
@@ -130,7 +135,7 @@ outputDFA target _ _ scheme dfa
         actionsArray = formatArray "Data.Array.array" nacts (concat acts)
         body :: ShowS
         body = case target of 
-          KokaTarget -> str "val " . str actions_nm . str " : vector<(int,action)> = " . actionsArray . nl
+          KokaTarget -> str "val " . str actions_nm . str " : vector<action> = vector-init-list(" . str (show nacts) . comma . formatKokaList (concat acts) . str ");" . nl
           _ -> str actions_nm . str " = " . actionsArray . nl
         signature :: ShowS
         signature = case scheme of

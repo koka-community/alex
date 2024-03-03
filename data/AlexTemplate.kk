@@ -11,7 +11,7 @@ type alexReturn
   AlexEOF
   AlexError(i: alexInput)
   AlexSkip(i: alexInput, n: int)
-  AlexToken(i: alexInput, n: int, a: (int,action)) // a is the action type
+  AlexToken(i: alexInput, n: int, a: action) // a is the action type
 
 // alexScan :: AlexInput -> StartCode -> AlexReturn a
 fun alexScan(input: alexInput, sc: int): <pure|e> alexReturn
