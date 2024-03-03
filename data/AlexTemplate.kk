@@ -63,7 +63,7 @@ fun alex_scan_tkn(user__:maybe<a>, orig_input:alexInput, len:int, input__:alexIn
           val base = alex_base.unsafe-idx(s.ssize_t)
           val offset = base + ord_c
           val check  = alex_check.unsafe-idx(offset.ssize_t)
-          val new_s = if offset > 0 && check == ord_c
+          val new_s = if offset >= 0 && check == ord_c
                           then alex_table.unsafe-idx(offset.ssize_t)
                           else alex_deflt.unsafe-idx(s.ssize_t)
         
