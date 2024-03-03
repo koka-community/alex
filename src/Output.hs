@@ -111,8 +111,8 @@ outputDFA target _ _ scheme dfa
       -- str accept_nm . str " :: Array Int (AlexAcc " . str userStateTy . str ")\n"
       case target of
         KokaTarget -> 
-            str "val " . str accept_nm . str ": list<list<int>> = "
-          . formatArray "array" n_states (map shows accept)
+            str "val " . str accept_nm . str " = "
+          . formatArray "array" n_states (snd (mapAccumR outputAccsKoka 0 accept))
           . nl
         _ -> 
           str accept_nm . str " = "
@@ -329,6 +329,24 @@ outputDFA target _ _ scheme dfa
                       . str (show idx') . space
                       . paren (outputPred lctx rctx)
                       . paren rest')
+    
+
+    outputAccsKoka :: Int -> [Accept Code] -> (Int, ShowS)
+    outputAccsKoka idx [] = (idx, str "AlexAccNone")
+    outputAccsKoka idx (Acc _ Nothing Nothing NoRightContext : [])
+      = (idx, str "AlexAccSkip")
+    outputAccsKoka idx (Acc _ (Just _) Nothing NoRightContext : [])
+      = (idx + 1, str "AlexAcc" . paren (str (show idx)))
+    outputAccsKoka idx (Acc _ Nothing lctx rctx : rest)
+      = let (idx', rest') = outputAccsKoka idx rest
+        in (idx', str "AlexAccSkipPred" 
+                 . paren ((outputPred lctx rctx) . comma . rest'))
+    outputAccsKoka idx (Acc _ (Just _) lctx rctx : rest)
+      = let (idx', rest') = outputAccsKoka idx rest
+        in (idx' + 1, str "AlexAccPred" . paren
+                      (str (show idx') . comma .
+                       (outputPred lctx rctx) . comma
+                      . rest'))
 
     outputActs :: Int -> [Accept Code] -> (Int, [ShowS])
     outputActs idx =
