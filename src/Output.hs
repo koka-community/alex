@@ -79,7 +79,7 @@ outputDFA target _ _ scheme dfa
     formatArray constructFunction size contents =
         case target of 
           KokaTarget -> 
-            str " [ " . interleave_shows (str ", ") contents . str " ].vector;" 
+            str " [ " . interleave_shows (str ", ") contents . str " ]" 
           _ -> 
               str constructFunction
             . str " (0 :: Int, " . shows size . str ")\n"
@@ -87,16 +87,17 @@ outputDFA target _ _ scheme dfa
             . interleave_shows (str "\n  , ") contents
             . str "\n  ]"
 
-    formatKokaList contents =
+    formatKokaList tp contents =
         case target of 
           KokaTarget -> 
-            str " [ " . interleave_shows (str ", ") contents . str " ]" 
+            str " [ " . interleave_shows (str ", ") contents . str " ] : " . str tp 
 
     do_array hex_chars nm upper_bound ints = -- trace ("do_array: " ++ nm) $
      case target of
       KokaTarget ->
-          str "val " . str nm . str " : vector<int> = "
+          str "val " . str nm . str " : vector<int> = ("
         . formatArray "array" upper_bound (map shows ints)
+        . str ": list<int>).vector;"
         . nl
       GhcTarget ->
           str nm . str " :: AlexAddr\n"
@@ -116,8 +117,9 @@ outputDFA target _ _ scheme dfa
       -- str accept_nm . str " :: Array Int (AlexAcc " . str userStateTy . str ")\n"
       case target of
         KokaTarget -> 
-            str "val " . str accept_nm . str " = "
+            str "val " . str accept_nm . str " : vector<alexAcc> = ("
           . formatArray "array" n_states (snd (mapAccumR outputAccsKoka 0 accept))
+          . str ": list<alexAcc>).vector;"
           . nl
         _ -> 
           str accept_nm . str " = "
@@ -135,7 +137,7 @@ outputDFA target _ _ scheme dfa
         actionsArray = formatArray "Data.Array.array" nacts (concat acts)
         body :: ShowS
         body = case target of 
-          KokaTarget -> str "val " . str actions_nm . str " : vector<action> = vector-init-list(" . str (show nacts) . comma . formatKokaList (concat acts) . str ");" . nl
+          KokaTarget -> str "val " . str actions_nm . str " : vector<action> = vector-init-list(" . str (show nacts) . comma . formatKokaList "list<(int,action)>" (concat acts) . str ");" . nl
           _ -> str actions_nm . str " = " . actionsArray . nl
         signature :: ShowS
         signature = case scheme of
