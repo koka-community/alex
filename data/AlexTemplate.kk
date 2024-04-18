@@ -34,11 +34,6 @@ fun alexScanUser(user: maybe<alexUser>, input: alexInput, sc: int): <pure,alexEf
       trace("Accept.")
       AlexToken(input__''', len, alex_actions.unsafe-idx(k.ssize_t))
 
-inline extern unsafe-idx( ^v : vector<a>, index : ssize_t ) : total a
-  c  "kk_vector_at_borrow"
-  cs inline "(#1)[#2]"
-  js inline "(#1)[#2]"
-
 // Push the input through the DFA, remembering the most recent accepting
 // state it encountered.
 fun alex_scan_tkn(user__:maybe<alexUser>, orig_input:alexInput, len:int, input__:alexInput, s: int, last_acc: alexLastAcc): <pure,alexEff> (alexLastAcc, alexInput)
