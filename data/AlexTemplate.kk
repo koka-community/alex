@@ -13,31 +13,36 @@ type alexReturn
   AlexSkip(i: alexInput, n: int)
   AlexToken(i: alexInput, n: int, a: action) // a is the action type
 
+effect val alextrace : bool
+
 // alexScan :: AlexInput -> StartCode -> AlexReturn a
-fun alexScan(input: alexInput, sc: int): <pure,alexEff> alexReturn
+fun alexScan(input: alexInput, sc: int): <pure,alextrace|e> alexReturn
   alexScanUser(Nothing, input, sc)
 
-fun alexScanUser(user: maybe<alexUser>, input: alexInput, sc: int): <pure,alexEff> alexReturn
+fun atrace(s: string): alextrace ()
+  if alextrace then trace(s) else ()
+
+fun alexScanUser(user: maybe<alexUser>, input: alexInput, sc: int): <pure,alextrace|e> alexReturn
   match alex_scan_tkn(user, input, 0, input, sc, AlexNone)
     (AlexNone, input__') ->
       match alexGetByte(input)
         Nothing ->
-          trace("End of input.")
+          atrace("End of input.")
           AlexEOF
         Just ->
-          trace("Error.")
+          atrace("Error.")
           AlexError(input__')
     (AlexLastSkip(input__'', len), _) ->
-      trace("Skipping.") 
+      atrace("Skipping.") 
       AlexSkip(input__'', len)
     (AlexLastAcc(k, input__''', len), _) ->
-      trace("Accept.")
+      atrace("Accept.")
       AlexToken(input__''', len, alex_actions.unsafe-idx(k.ssize_t))
 
 // Push the input through the DFA, remembering the most recent accepting
 // state it encountered.
-fun alex_scan_tkn(user__:maybe<alexUser>, orig_input:alexInput, len:int, input__:alexInput, s: int, last_acc: alexLastAcc): <pure,alexEff> (alexLastAcc, alexInput)
-  fun check_accs(acc: alexAcc): alexEff alexLastAcc
+fun alex_scan_tkn(user__:maybe<alexUser>, orig_input:alexInput, len:int, input__:alexInput, s: int, last_acc: alexLastAcc): <pure,alextrace|e> (alexLastAcc, alexInput)
+  fun check_accs(acc: alexAcc<<alextrace|e>>): <alextrace|e> alexLastAcc
     match acc
       AlexAccNone -> last_acc
       AlexAcc(a) -> AlexLastAcc(a, input__, len)
@@ -52,7 +57,7 @@ fun alex_scan_tkn(user__:maybe<alexUser>, orig_input:alexInput, len:int, input__
   match alexGetByte(input__)
      Nothing -> (new_acc, input__)
      Just((c, new_input)) ->
-       trace("State: " ++ s.show ++ ", char: " ++ c.show)
+       atrace("State: " ++ s.show ++ ", char: " ++ c.show)
        match c.int
         ord_c ->
           val base = alex_base.unsafe-idx(s.ssize_t)
@@ -74,19 +79,19 @@ type alexLastAcc
   AlexLastAcc(i: int, a: alexInput, n: int)
   AlexLastSkip(a: alexInput, n: int)
 
-type alexAcc
+type alexAcc<e>
   AlexAccNone
   AlexAcc(i: int)
   AlexAccSkip
-  AlexAccPred(i: int, pred: alexAccPred, acc: alexAcc)
-  AlexAccSkipPred(pred: alexAccPred, acc: alexAcc)
+  AlexAccPred(i: int, pred: alexAccPred<e>, acc: alexAcc<e>)
+  AlexAccSkipPred(pred: alexAccPred<e>, acc: alexAcc<e>)
 
-alias alexAccPred = (maybe<alexUser>, alexInput, int, alexInput) -> alexEff bool;
+alias alexAccPred<e> = (maybe<alexUser>, alexInput, int, alexInput) -> e bool;
 
 // -----------------------------------------------------------------------------
 // Predicates on a rule
 
-inline fun alexAndPred(p1: alexAccPred, p2: alexAccPred, user__: maybe<alexUser>, in1: alexInput, len: int, in2: alexInput): alexEff bool
+inline fun alexAndPred(p1: alexAccPred<e>, p2: alexAccPred<e>, user__: maybe<alexUser>, in1: alexInput, len: int, in2: alexInput): e bool
   p1(user__, in1, len, in2) && p2(user__, in1, len, in2)
 
 // alexPrevCharIsPred :: Char -> AlexAccPred _
@@ -102,7 +107,7 @@ inline fun alexPrevCharIsOneOf(arr: list<char>, _, input__: alexInput, _, _): pu
   arr.any(fn(c) c == prev)
 
 // alexRightContext :: Int -> AlexAccPred _
-inline fun alexRightContext(sc:int, user__: maybe<alexUser>, _, _, input__: alexInput): <pure,alexEff> bool
+inline fun alexRightContext(sc:int, user__: maybe<alexUser>, _, _, input__: alexInput): <pure,alextrace|e> bool
   match alex_scan_tkn(user__, input__, 0, input__, sc, AlexNone)
     (AlexNone, _) -> False
     _ -> True

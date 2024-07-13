@@ -86,6 +86,9 @@ outputDFA target _ _ scheme dfa
             . str "  [ "
             . interleave_shows (str "\n  , ") contents
             . str "\n  ]"
+    
+    formatCArray contents = 
+      str " { " . interleave_shows (str ", ") contents . str " }" 
 
     formatKokaList tp contents =
         case target of 
@@ -95,9 +98,9 @@ outputDFA target _ _ scheme dfa
     do_array hex_chars nm upper_bound ints = -- trace ("do_array: " ++ nm) $
      case target of
       KokaTarget ->
-          str "val " . str nm . str " : vector<int> = ("
-        . formatArray "array" upper_bound (map shows ints)
-        . str ": list<int>).vector;"
+          str "val " . str nm . str " = " . str nm . str "_create()" . nl . str "extern " . str nm . str "_create(): vector<int>" . nl
+        . str "  c inline \"kk_intx_t arr[] = " . formatCArray (map shows ints) . str ";\\n"
+        . str "kk_vector_from_cintarray(arr, " . str (show $ length ints) . str ", kk_context())\""
         . nl
       GhcTarget ->
           str nm . str " :: AlexAddr\n"
@@ -117,9 +120,9 @@ outputDFA target _ _ scheme dfa
       -- str accept_nm . str " :: Array Int (AlexAcc " . str userStateTy . str ")\n"
       case target of
         KokaTarget -> 
-            str "val " . str accept_nm . str " : vector<alexAcc> = ("
+            str "val " . str accept_nm . str " : some<e> vector<alexAcc<e>> = ("
           . formatArray "array" n_states (snd (mapAccumR outputAccsKoka 0 accept))
-          . str ": list<alexAcc>).vector;"
+          . str ": some<e> list<alexAcc<e>>).vector;"
           . nl
         _ -> 
           str accept_nm . str " = "
