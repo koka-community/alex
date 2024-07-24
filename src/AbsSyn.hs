@@ -43,6 +43,7 @@ data Directive
    = WrapperDirective String            -- use this wrapper
    | LanguageDirective String           -- use this target language
    | EncodingDirective Encoding         -- use this encoding
+   | EffectDirective String             -- use this effect
    | ActionType String                  -- Type signature of actions,
                                         -- with optional typeclasses
    | TypeClass String

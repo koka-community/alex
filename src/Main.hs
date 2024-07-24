@@ -118,6 +118,19 @@ parseScript file prg =
       , msg
       ]
 
+split :: String -> String -> [String]
+split _ "" = []
+split delim str =
+  split' "" str []
+  where
+    dl = length delim
+
+    split' :: String -> String -> [String] -> [String]
+    split' h t f
+      | dl > length t = f ++ [h ++ t]
+      | delim == take dl t = split' "" (drop dl t) (f ++ [h])
+      | otherwise = split' (h ++ take 1 t) (drop 1 t) f
+
 alex :: [CLIFlags]
      -> FilePath
      -> FilePath
@@ -159,7 +172,7 @@ alex cli file basename script = do
        scanner1                   :: Scanner
        (maybe_header, directives, scanner1, maybe_footer) = script
 
-   scheme <- getScheme directives   
+   scheme <- getScheme directives
 
    -- open the output file; remove it if we encounter an error
    bracketOnError
@@ -176,6 +189,7 @@ alex cli file basename script = do
          (scanner2, scs, sc_hdr) = encodeStartCodes scanner1
          (scanner_final, actions) = extractActions target scheme scanner2
          encodingsScript = [ e | EncodingDirective e <- directives ]
+   effects <- getEffect directives
 
    encoding <- case nub (encodingsCli ++ encodingsScript) of
      []  -> return UTF8 -- default
@@ -234,11 +248,12 @@ alex cli file basename script = do
      mapM_ (hPutStrLn out_h)
        [ unwords ["#define", i, "1"]
        | i <- cppDefs ]
-     tmplt <- 
-        case target of 
+     tmplt <-
+        case target of
           KokaTarget -> alexReadFile $ template_dir ++ "/AlexTemplate.kk"
           _ -> alexReadFile $ template_dir ++ "/AlexTemplate.hs"
-     hPutStr out_h tmplt
+     let eff = if null effects then "" else "," ++ intercalate "," effects
+     hPutStr out_h (intercalate eff (split "%effects" tmplt))
 
    injectCode target maybe_footer file out_h
 
@@ -246,11 +261,18 @@ alex cli file basename script = do
    finish_info
 
 getLanguage :: [Directive] -> IO Target
-getLanguage directives = 
+getLanguage directives =
   case [ lang | LanguageDirective lang <- directives ] of
     [] -> return HaskellTarget
     [res] -> return KokaTarget
     _ -> dieAlex "multiple %language directives"
+
+getEffect :: [Directive] -> IO [String]
+getEffect directives =
+  case [ eff | EffectDirective eff <- directives ] of
+    [] -> return []
+    effs -> return effs
+    _ -> dieAlex "multiple %effect directives"
 
 getScheme :: [Directive] -> IO Scheme
 getScheme directives =
@@ -470,9 +492,9 @@ templateDir def cli
 
 templateCppDefs :: Target -> Encoding -> UsesPreds -> [CLIFlags] -> [String]
 templateCppDefs target encoding usespreds cli =
-  case target of 
+  case target of
     KokaTarget -> []
-    _ -> 
+    _ ->
       map ("ALEX_" ++) $ concat
         [ [ "GHC"    | target == GhcTarget ]
         , [ "LATIN1" | encoding == Latin1  ]

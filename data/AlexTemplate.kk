@@ -16,13 +16,13 @@ type alexReturn
 effect val alextrace : bool
 
 // alexScan :: AlexInput -> StartCode -> AlexReturn a
-fun alexScan(input: alexInput, sc: int): <pure,alextrace|e> alexReturn
+fun alexScan(input: alexInput, sc: int): <pure,alextrace%effects|e> alexReturn
   alexScanUser(Nothing, input, sc)
 
 fun atrace(s: string): alextrace ()
   if alextrace then trace(s) else ()
 
-fun alexScanUser(user: maybe<alexUser>, input: alexInput, sc: int): <pure,alextrace|e> alexReturn
+fun alexScanUser(user: maybe<alexUser>, input: alexInput, sc: int): <pure,alextrace%effects|e> alexReturn
   match alex_scan_tkn(user, input, 0, input, sc, AlexNone)
     (AlexNone, input__') ->
       match alexGetByte(input)
@@ -42,7 +42,7 @@ fun alexScanUser(user: maybe<alexUser>, input: alexInput, sc: int): <pure,alextr
 // Push the input through the DFA, remembering the most recent accepting
 // state it encountered.
 fun alex_scan_tkn(user__:maybe<alexUser>, orig_input:alexInput, len:int, input__:alexInput, s: int, last_acc: alexLastAcc): <pure,alextrace|e> (alexLastAcc, alexInput)
-  fun check_accs(acc: alexAcc<<alextrace|e>>): <alextrace|e> alexLastAcc
+  fun check_accs(acc: alexAcc<<alextrace|e>>): <alextrace%effects|e> alexLastAcc
     match acc
       AlexAccNone -> last_acc
       AlexAcc(a) -> AlexLastAcc(a, input__, len)
@@ -95,19 +95,19 @@ inline fun alexAndPred(p1: alexAccPred<e>, p2: alexAccPred<e>, user__: maybe<ale
   p1(user__, in1, len, in2) && p2(user__, in1, len, in2)
 
 // alexPrevCharIsPred :: Char -> AlexAccPred _
-inline fun alexPrevCharIs(c: char, _, input__: alexInput, _, _): pure bool
+inline fun alexPrevCharIs(c: char, _, input__: alexInput, _, _): <%effectspure> bool
   c == alexInputPrevChar(input__)
 
-inline fun alexPrevCharMatches(f: (char) -> pure bool, _, input__: alexInput, _, _): pure bool
+inline fun alexPrevCharMatches(f: (char) -> pure bool, _, input__: alexInput, _, _): <%effectspure> bool
   f(alexInputPrevChar(input__))
 
 // alexPrevCharIsOneOfPred :: Array Char Bool -> AlexAccPred _
-inline fun alexPrevCharIsOneOf(arr: list<char>, _, input__: alexInput, _, _): pure bool
+inline fun alexPrevCharIsOneOf(arr: list<char>, _, input__: alexInput, _, _): <%effectspure> bool
   val prev = alexInputPrevChar(input__)
   arr.any(fn(c) c == prev)
 
 // alexRightContext :: Int -> AlexAccPred _
-inline fun alexRightContext(sc:int, user__: maybe<alexUser>, _, _, input__: alexInput): <pure,alextrace|e> bool
+inline fun alexRightContext(sc:int, user__: maybe<alexUser>, _, _, input__: alexInput): <%effectspure,alextrace|e> bool
   match alex_scan_tkn(user__, input__, 0, input__, sc, AlexNone)
     (AlexNone, _) -> False
     _ -> True

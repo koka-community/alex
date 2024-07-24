@@ -62,6 +62,7 @@ import Data.Char
 	WRAPPER		{ T _ WrapperT }
 	ENCODING	{ T _ EncodingT }
 	LANGUAGE	{ T _ LanguageT }
+	EFFECTS	  { T _ EffectsT }
         ACTIONTYPE      { T _ ActionTypeT }
         TOKENTYPE       { T _ TokenTypeT }
         TYPECLASS       { T _ TypeClassT }
@@ -83,6 +84,7 @@ directive  :: { Directive }
 	: WRAPPER STRING		{ WrapperDirective $2 }
 	| ENCODING encoding		{ EncodingDirective $2 }
 	| LANGUAGE STRING   { LanguageDirective $2 }
+	| EFFECTS STRING   { EffectDirective $2 }
         | ACTIONTYPE STRING             { ActionType $2 }
         | TOKENTYPE STRING              { TokenType $2 }
         | TYPECLASS STRING              { TypeClass $2 }
