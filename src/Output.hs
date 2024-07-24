@@ -63,12 +63,12 @@ outputDFA target _ _ scheme dfa
     table_size = length table - 1
     n_states   = length base - 1
 
-    base_nm   = "alex_base"
-    table_nm  = "alex_table"
-    check_nm  = "alex_check"
-    deflt_nm  = "alex_deflt"
-    accept_nm = "alex_accept"
-    actions_nm = "alex_actions"
+    base_nm   = case target of KokaTarget -> "alex-base"; _ -> "alex_base"
+    table_nm  = case target of KokaTarget -> "alex-table"; _ -> "alex_table"
+    check_nm  = case target of KokaTarget -> "alex-check"; _ -> "alex_check"
+    deflt_nm  = case target of KokaTarget -> "alex-deflt"; _ -> "alex_deflt"
+    accept_nm = case target of KokaTarget -> "alex-accept"; _ -> "alex_accept"
+    actions_nm = case target of KokaTarget -> "alex-actions"; _ -> "alex_actions"
 
     outputBase    = do_array hexChars32 base_nm  n_states   base
     outputTable   = do_array hexChars16 table_nm table_size table
@@ -120,10 +120,16 @@ outputDFA target _ _ scheme dfa
       -- str accept_nm . str " :: Array Int (AlexAcc " . str userStateTy . str ")\n"
       case target of
         KokaTarget -> 
-            str "val " . str accept_nm . str " : some<e> vector<alexAcc<e>> = ("
-          . formatArray "array" n_states (snd (mapAccumR outputAccsKoka 0 accept))
-          . str ": some<e> list<alexAcc<e>>).vector;"
-          . nl
+          case scheme of
+            Koka{ lexEffectful=effects } ->
+                  str "val " . str accept_nm . str tpString . str " = ("
+                . formatArray "array" n_states (snd (mapAccumR outputAccsKoka 0 accept))
+                . str listTpString . str ").vector;"
+                . nl
+              where 
+                  tpString = if effects then " : vector<alexAcc>" else " : some<e> vector<alexAcc<e>>"
+                  listTpString = if effects then " : list<alexAcc>" else " : some<e> list<alexAcc<e>>"
+            _ -> error "KokaTarget requires Koka wrapper use %wrapper \"effect\" or %wrapper \"no-effect\""
         _ -> 
           str accept_nm . str " = "
           . formatArray "Data.Array.listArray" n_states (snd (mapAccumR outputAccs 0 accept))

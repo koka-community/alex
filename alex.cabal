@@ -43,7 +43,8 @@ data-dir: data/
 data-files:
         AlexTemplate.hs
         AlexWrappers.hs
-        AlexTemplate.kk
+        alex-no-effect.kk
+        alex-effects.kk
 
 extra-doc-files:
         CHANGELOG.md
