@@ -43,13 +43,14 @@ data Directive
    = WrapperDirective String            -- use this wrapper
    | LanguageDirective String           -- use this target language
    | EncodingDirective Encoding         -- use this encoding
+   | EffectDirective String             -- use this effect
    | ActionType String                  -- Type signature of actions,
                                         -- with optional typeclasses
    | TypeClass String
    | TokenType String
    deriving Show
 
-data StrType = Str | Lazy | Strict | StrictText | KokaText
+data StrType = Str | Lazy | Strict | StrictText
   deriving Eq
 
 instance Show StrType where
@@ -57,7 +58,6 @@ instance Show StrType where
   show Lazy = "ByteString.ByteString"
   show Strict = "ByteString.ByteString"
   show StrictText = "Data.Text.Text"
-  show KokaText = "string"
 
 data Scheme
   = Default { defaultTypeInfo :: Maybe (Maybe String, String) }
@@ -69,6 +69,7 @@ data Scheme
   | Monad { monadStrType :: StrType,
             monadUserState :: Bool,
             monadTypeInfo :: Maybe (Maybe String, String) }
+  | Koka { effectType :: String, lexEffectful :: Bool }
 
 wrapperCppDefs :: Scheme -> Maybe [String]
 wrapperCppDefs Default {} = Nothing
@@ -97,6 +98,7 @@ wrapperCppDefs Monad { monadStrType = Lazy,
                        monadUserState = True } = Just ["ALEX_MONAD_BYTESTRING", "ALEX_MONAD_USER_STATE"]
 wrapperCppDefs Monad { monadStrType = StrictText,
                        monadUserState = True } = Just ["ALEX_MONAD_STRICT_TEXT", "ALEX_MONAD_USER_STATE"]
+wrapperCppDefs Koka {} = Nothing
 
 -- TODO: update this comment
 --
