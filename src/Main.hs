@@ -22,6 +22,7 @@ import Parser
 import Scan
 import Util                  ( hline )
 import Paths_alex            ( version, getDataDir )
+import Debug.Trace
 
 import Control.Exception     ( bracketOnError )
 import Control.Monad         ( when, liftM )
