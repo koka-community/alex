@@ -251,6 +251,7 @@ alex cli file basename script = do
        | i <- cppDefs ]
      tmplt <-
         case target of
+          KokaTarget -> alexReadFile $ template_dir ++ "/alex-effects.kk"
           KokaTarget -> alexReadFile $ template_dir ++ "/AlexTemplate.kk"
           _ -> alexReadFile $ template_dir ++ "/AlexTemplate.hs"
      let eff = if null effects then "" else "," ++ intercalate "," effects
