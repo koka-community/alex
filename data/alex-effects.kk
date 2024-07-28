@@ -21,8 +21,7 @@ effect alex
   fun consume-char(): () // Consumes the current character, adding it to the accepted input
   // Lexer accepting finished tokens and info
   fun set-accept(s: int): () // Sets the latest potential accepting state, while still seeking for states that accept more input
-  fun get-last-accept(): alexAccRes // Get's the last discovered accepting state
-  fun recognize-token(): () // Recognizes that the last accepting state is the longest accepting token, and prepares to start the next token
+  fun recognize-token(): alexAccRes // Recognizes that the last accepting state is the longest accepting token, and prepares to start the next token
   fun action-info(): action-info // Get the info about the last token recognized (start, end, and slice) for the action
 
 pub value struct alex-pos
@@ -72,92 +71,111 @@ value type alexAcc
   AlexAcc(a: int)
   AlexAccSkip
 
-reference type alexAccRes
+ref type alexAccRes
   AlexAccResNone
   AlexAccRes(action: int, input: sslice, acc: sslice, end: alex-pos)
   AlexAccResSkip(input: sslice, acc: sslice)
 
-fun alex-scan(input: sslice, sc: int, restart:bool=False): handled-alex-eff ()
-  var states := [sc]
-  var seek := input // The seeked position in the input
+ref struct alexScanState
+  states: list<int> 
+  seek: sslice // The seeked position in the input
   // on an error, we want to keep the input *before* the
   // character that failed, not after.
-  var current := input // Trails the seeked position by one
-  var acc := input.truncate // The slice representing the current 'accepted' portion of the input
-  var prev := ' ' // Previous character
-  var curr := ' ' // Current character
-  var start := Alex-pos(0,1,1) // File position of the start of the current token
-  var end := Alex-pos(0,1,1) // File position of the end of the current token
-  var last-accept := AlexAccResNone // The last accepting state encountered
-  var action-info := Action-info(acc, start, end) // The action info
-  with handler
-    fun get-state()
-      match states // Get the current lexer state (i.e. the state to start the next token in)
-        Cons(s) -> s
-    fun push-state(i)
-      states := Cons(i, states) // Push a new state onto the stack
-    fun pop-state() // Pop the current state off the stack
-      match states
-        Cons(s, ss) -> 
-          states := ss
-          s
-        _ -> throw("No states to pop.")
-    fun next-char() // Moves the current to the seeked position, and moves the seeked position to the next character
-      current := seek
+  current: sslice // Trails the seeked position by one
+  acc: sslice // The slice representing the current 'accepted' portion of the input
+  prev: char // Previous character
+  curr: char // Current character
+  start: alex-pos // File position of the start of the current token
+  end: alex-pos // File position of the end of the current token
+  last-accept: alexAccRes // The last accepting state encountered
+  action-info: action-info // The action info
+
+// Consumes the current character, adding it to the accepted input for this token
+fun alex-consume-char(a: alexScanState)
+  match a
+    AlexScanState(states, seek, current, acc, prev, curr, start, end, last-accept, action-info) ->
+      AlexScanState(states, seek, current, acc.extend(1), prev, curr, start, end.pos-move(curr), last-accept, action-info)
+      
+// Moves the current to the seeked position, and moves the seeked position to the next character
+fun alex-next(a: alexScanState): (maybe<(alexScanState,char)>)
+  match a
+    AlexScanState(states, seek, _, acc, _, curr, start, end, last-accept, action-info) ->
       match seek.next()
-        Just((c, slice')) -> 
-          prev := curr
-          curr := c
-          seek := slice'
-          Just(c)
-        Nothing -> Nothing
-    fun consume-char() // Consumes the current character, adding it to the accepted input for this token
-      acc := acc.extend(1)
-      end := end.pos-move(curr)
-    fun prev-char() // Gets the previous character
-      prev
-    fun action-info() // Gets the info for the action
-      action-info
-    fun get-last-accept() // Get the last accepting state
-      last-accept
-    fun set-accept(s) // Sets the accepting state
+        Just((c, slice')) ->
+          Just((AlexScanState(states, slice', seek, acc, curr, c, start, end, last-accept, action-info), c))
+        Nothing ->  Nothing
+
+fun do-alex-accept(a: alexScanState, s: int) // Sets the accepting state
+  match a
+    AlexScanState(states, seek, current, acc, prev, curr, start, end, last-accept, action-info) ->
       match alex-accept.unsafe-idx(s.ssize_t)
         AlexAccNone -> 
-          () // Just use the previous accepting state
+          AlexScanState(states, seek, current, acc, prev, curr, start, end, last-accept, action-info) // Just use the previous accepting state
         AlexAcc(act) -> 
           // New accepting state with this accumlated input and end, and the action associated with it
-          last-accept := AlexAccRes(act, current, acc, end) 
+          AlexScanState(states, seek, current, acc, prev, curr, start, end, AlexAccRes(act, seek, acc, end), action-info)
         AlexAccSkip -> 
-          last-accept := AlexAccResSkip(current, acc) // An accepting state that skips over this input
-    fun recognize-token() // Recognizes the last accepting state as the longest accepting token
+          // An accepting state that skips over this input
+          AlexScanState(states, seek, current, acc, prev, curr, start, end, AlexAccResSkip(seek, acc), action-info)
+
+// Recognizes the last accepting state as the longest accepting token
+fun recognize(a: alexScanState, restart: bool)
+  match a
+    AlexScanState(states, seek, current, acc, prev, curr, start, end, last-accept, action-info) ->
       match last-accept
         AlexAccResNone ->  
           match seek.next() // Check if we are at the end of the input
-            Nothing -> ()  // EOF
+            Nothing -> 
+              // EOF
+              AlexScanState(states, seek, current, acc, prev, curr, start, end, last-accept, action-info)
             Just ->
               if restart then // Try skipping the first character, and start again
-                current := seek
-                start := end
-                acc := seek.truncate() // TODO: End / start positions
-                last-accept := AlexAccResNone
+                AlexScanState(states, seek, seek, seek.truncate(), ' ', ' ', end, end, AlexAccResNone, action-info)
               else
                 throw("Alex Error at: " ++ seek.subslice(0, 50).string.show)
-        AlexAccRes(_, rescurr, resacc, resend) ->
-          action-info := Action-info(resacc, start, resend)
-          start := end
-          seek := rescurr
-          acc := seek.truncate()
-          last-accept := AlexAccResNone
-        AlexAccResSkip(rescurr) ->      
-          start := end
-          seek := rescurr
-          acc := seek.truncate()
-          last-accept := AlexAccResNone
+        AlexAccRes(_, resnext, resacc, resend) ->
+          // trace("Recognized " ++ resacc.show)
+          AlexScanState(states, resnext, resnext, resnext.truncate(), ' ', ' ', end, end, AlexAccResNone, Action-info(resacc, start, resend))
+        AlexAccResSkip(resnext) ->
+          AlexScanState(states, resnext, resnext, resnext.truncate(), ' ', ' ', end, end, AlexAccResNone, action-info)
+
+fun alex-scan(input: sslice, sc: int, restart:bool=False): handled-alex-eff ()
+  var state := AlexScanState([sc], input, input, input.truncate, ' ', ' ' , Alex-pos(0,1,1), Alex-pos(0,1,1), AlexAccResNone, Action-info(input.truncate, Alex-pos(0,1,1), Alex-pos(0,1,1)))
+  with handler
+    fun get-state()
+      match state.states // Get the current lexer state (i.e. the state to start the next token in)
+        Cons(s) -> s
+    fun push-state(i)
+      state := state(states=Cons(i, state.states)) // Push a new state onto the stack
+    fun pop-state() // Pop the current state off the stack
+      match state.states
+        Cons(s, ss) -> 
+          state := state(states=ss)
+          s
+        _ -> throw("No states to pop.")
+    fun next-char() 
+      val mc = state.alex-next()
+      match mc
+        Nothing -> Nothing
+        Just((s, c)) -> 
+          state := s
+          Just(c)
+    fun consume-char() 
+      state := state.alex-consume-char()
+    fun prev-char() // Gets the previous character
+      state.prev
+    fun action-info() // Gets the info for the action
+      state.action-info
+    fun set-accept(s) // Sets the accepting state
+      state := state.do-alex-accept(s)
+    fun recognize-token() 
+      val la = state.last-accept
+      state := state.recognize(restart) 
+      la
   alex-scan-tokens(sc)
 
 inline fun do-recognize-token(): alex-eff ()
-  val la = get-last-accept()
-  recognize-token() // Changes last accept, so we get it prior
+  val la = recognize-token() // Changes last accept, so we get it prior
   match la
     AlexAccRes(a) ->
       alex-actions.unsafe-idx(a.ssize_t)()
