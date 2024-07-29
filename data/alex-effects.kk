@@ -71,7 +71,7 @@ value type alexAcc
   AlexAcc(a: int)
   AlexAccSkip
 
-ref type alexAccRes
+type alexAccRes
   AlexAccResNone
   AlexAccRes(action: int, input: sslice, acc: sslice, end: alex-pos)
   AlexAccResSkip(input: sslice, acc: sslice)
@@ -96,13 +96,17 @@ fun alex-consume-char(a: alexScanState)
     AlexScanState(states, seek, current, acc, prev, curr, start, end, last-accept, action-info) ->
       AlexScanState(states, seek, current, acc.extend(1), prev, curr, start, end.pos-move(curr), last-accept, action-info)
       
+pub value struct alex-next
+  s: alexScanState
+  c: char
+
 // Moves the current to the seeked position, and moves the seeked position to the next character
-fun alex-next(a: alexScanState): (maybe<(alexScanState,char)>)
+fun alex-next(a: alexScanState): (maybe<alex-next>)
   match a
     AlexScanState(states, seek, _, acc, _, curr, start, end, last-accept, action-info) ->
       match seek.next()
         Just((c, slice')) ->
-          Just((AlexScanState(states, slice', seek, acc, curr, c, start, end, last-accept, action-info), c))
+          Just(Alex-next(AlexScanState(states, slice', seek, acc, curr, c, start, end, last-accept, action-info), c))
         Nothing ->  Nothing
 
 fun do-alex-accept(a: alexScanState, s: int) // Sets the accepting state
@@ -157,7 +161,7 @@ fun alex-scan(input: sslice, sc: int, restart:bool=False): handled-alex-eff ()
       val mc = state.alex-next()
       match mc
         Nothing -> Nothing
-        Just((s, c)) -> 
+        Just(Alex-next(s, c)) -> 
           state := s
           Just(c)
     fun consume-char() 
