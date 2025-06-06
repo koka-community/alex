@@ -31,7 +31,6 @@ module CharSet (
   charSetComplement,
   charSetRange,
   charSetUnion,
-  charSetQuote,
   setUnions,
   byteSetToArray,
   byteSetElems,
@@ -167,16 +166,3 @@ byteSetRange c1 c2 = makeRangedSet [Range (BoundaryBelow c1) (BoundaryAbove c2)]
 
 byteSetSingleton :: Byte -> ByteSet
 byteSetSingleton = rSingleton
-
--- TODO: More efficient generated code!
-charSetQuote :: CharSet -> String
-charSetQuote s = "(\\c -> " ++ foldr (\x y -> x ++ " || " ++ y) "False" (map quoteRange (rSetRanges s)) ++ ")"
-    where quoteRange (Range l h) = quoteL l ++ " && " ++ quoteH h
-          quoteL (BoundaryAbove a) = "c > " ++ show a
-          quoteL (BoundaryBelow a) = "c >= " ++ show a
-          quoteL (BoundaryAboveAll) = "False"
-          quoteL (BoundaryBelowAll) = "True"
-          quoteH (BoundaryAbove a) = "c <= " ++ show a
-          quoteH (BoundaryBelow a) = "c < " ++ show a
-          quoteH (BoundaryAboveAll) = "True"
-          quoteH (BoundaryBelowAll) = "False"

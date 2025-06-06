@@ -12,6 +12,7 @@ module Util
   ( str
   , char
   , nl
+  , comma
   , paren
   , interleave_shows
   , space
@@ -42,6 +43,9 @@ interleave_shows s xs = foldr1 (\a b -> a . s . b) xs
 
 space :: String -> String
 space = char ' '
+
+comma :: String -> String
+comma = char ','
 
 cjustify, ljustify, rjustify :: Int -> String -> String
 cjustify n s = spaces halfm ++ s ++ spaces (m - halfm)
