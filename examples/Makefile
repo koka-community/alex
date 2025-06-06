@@ -14,6 +14,10 @@ PROGS = lit Tokens Tokens_gscan words words_posn words_monad tiny haskell tiger
 
 ALEX_OPTS = --template=../data/ -g
 
+koka.kk: koka.x
+	$(ALEX) -k koka.x --template=../data/ -o $@
+	cp $@ $(HOME)/koka_code/compiler/syntax/lexer3.kk
+
 %.alex.hs : %.x
 	$(ALEX) $(ALEX_OPTS) $< -o $@
 
@@ -23,7 +27,7 @@ ALEX_OPTS = --template=../data/ -g
 %.o : %.hs
 	$(HC) $(HC_OPTS) -c -o $@ $<
 
-CLEAN_FILES += *.info *.hi *.o *.bin *.exe
+CLEAN_FILES += *.info *.hi *.o *.bin *.exe *.kk
 
 all : $(addsuffix $(exeext),$(PROGS))
 
@@ -56,5 +60,6 @@ tiger$(exeext) : tiger.alex.hs
 
 .PHONY: clean
 clean:
-	rm -f *.o *.hi $(addsuffix $(exeext),$(PROGS)) \
+	rm -f *.o *.hi *.kk $(addsuffix $(exeext),$(PROGS)) \
 		*.alex.hs *.happy.hs
+	rm -f $(HOME)/koka_code/compiler/syntax/lexer3.kk

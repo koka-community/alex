@@ -144,6 +144,7 @@ alex cli file basename script = do
                 _   -> dieAlex "multiple -s/--tab-size options"
 
    let target
+        | OptKokaTarget `elem` cli = KokaTarget
         | OptGhcTarget `elem` cli = GhcTarget
         | otherwise               = HaskellTarget
 
@@ -158,7 +159,7 @@ alex cli file basename script = do
        scanner1                   :: Scanner
        (maybe_header, directives, scanner1, maybe_footer) = script
 
-   scheme <- getScheme directives
+   scheme <- getScheme directives   
 
    -- open the output file; remove it if we encounter an error
    bracketOnError
@@ -168,11 +169,12 @@ alex cli file basename script = do
 
    let   scanner2, scanner_final :: Scanner
          scs                     :: [StartCode]
-         sc_hdr, actions         :: ShowS
+         actions                 :: ShowS
+         sc_hdr                  :: Target -> ShowS
          encodingsScript         :: [Encoding]
 
          (scanner2, scs, sc_hdr) = encodeStartCodes scanner1
-         (scanner_final, actions) = extractActions scheme scanner2
+         (scanner_final, actions) = extractActions target scheme scanner2
          encodingsScript = [ e | EncodingDirective e <- directives ]
 
    encoding <- case nub (encodingsCli ++ encodingsScript) of
@@ -182,7 +184,7 @@ alex cli file basename script = do
        | otherwise -> dieAlex "--latin1 flag conflicts with %encoding directive"
 
    mapM_ (hPutStrLn out_h) (optsToInject target cli)
-   injectCode maybe_header file out_h
+   injectCode target maybe_header file out_h
 
    hPutStr out_h (importsToInject target cli)
 
@@ -198,8 +200,12 @@ alex cli file basename script = do
        hPutStr out_h str
 
    -- Inject the tab size
-   hPutStrLn out_h $ "alex_tab_size :: Int"
-   hPutStrLn out_h $ "alex_tab_size = " ++ show (tab_size :: Int)
+   case target of
+     KokaTarget -> do
+      hPutStrLn out_h $ "val alex_tab_size:int = " ++ show (tab_size :: Int)
+     _ -> do
+      hPutStrLn out_h $ "alex_tab_size :: Int"
+      hPutStrLn out_h $ "alex_tab_size = " ++ show (tab_size :: Int)
 
    let dfa = scanner2dfa encoding scanner_final scs
        min_dfa = minimizeDFA dfa
@@ -219,7 +225,7 @@ alex cli file basename script = do
    put_info (infoDFA 1 nm min_dfa "")
    hPutStr out_h (outputDFA target 1 nm scheme min_dfa "")
 
-   hPutStr out_h (sc_hdr "")
+   hPutStr out_h (sc_hdr target "")
    hPutStr out_h (actions "")
 
    -- add the template
@@ -228,13 +234,23 @@ alex cli file basename script = do
      mapM_ (hPutStrLn out_h)
        [ unwords ["#define", i, "1"]
        | i <- cppDefs ]
-     tmplt <- alexReadFile $ template_dir ++ "/AlexTemplate.hs"
+     tmplt <- 
+        case target of 
+          KokaTarget -> alexReadFile $ template_dir ++ "/AlexTemplate.kk"
+          _ -> alexReadFile $ template_dir ++ "/AlexTemplate.hs"
      hPutStr out_h tmplt
 
-   injectCode maybe_footer file out_h
+   injectCode target maybe_footer file out_h
 
    hClose out_h
    finish_info
+
+getLanguage :: [Directive] -> IO Target
+getLanguage directives = 
+  case [ lang | LanguageDirective lang <- directives ] of
+    [] -> return HaskellTarget
+    [res] -> return KokaTarget
+    _ -> dieAlex "multiple %language directives"
 
 getScheme :: [Directive] -> IO Scheme
 getScheme directives =
@@ -357,13 +373,17 @@ getScheme directives =
         _many -> dieAlex "multiple %wrapper directives"
 
 -- inject some code, and add a {-# LINE #-} pragma at the top
-injectCode :: Maybe (AlexPosn,Code) -> FilePath -> Handle -> IO ()
-injectCode Nothing _ _ = return ()
-injectCode (Just (AlexPn _ ln _,code)) filename hdl = do
+injectCode :: Target -> Maybe (AlexPosn,Code) -> FilePath -> Handle -> IO ()
+injectCode target Nothing _ _ = return ()
+injectCode KokaTarget (Just (AlexPn _ ln _,code)) filename hdl = do
+  hPutStrLn hdl ("/// LINE " ++ show ln ++ " \"" ++ filename ++ "\"")
+  hPutStrLn hdl code
+injectCode target (Just (AlexPn _ ln _,code)) filename hdl = do
   hPutStrLn hdl ("{-# LINE " ++ show ln ++ " \"" ++ filename ++ "\" #-}")
   hPutStrLn hdl code
 
 optsToInject :: Target -> [CLIFlags] -> [String]
+optsToInject KokaTarget _ = []
 optsToInject target _ = concat
   [ optNoWarnings
   , [ "{-# LANGUAGE CPP #-}" ]
@@ -385,6 +405,7 @@ optNoWarnings =
     ]
 
 importsToInject :: Target -> [CLIFlags] -> String
+importsToInject KokaTarget _ = ""
 importsToInject _ cli = unlines $
   always_imports ++ debug_imports ++ glaexts_import
   where
@@ -449,12 +470,15 @@ templateDir def cli
 
 templateCppDefs :: Target -> Encoding -> UsesPreds -> [CLIFlags] -> [String]
 templateCppDefs target encoding usespreds cli =
-  map ("ALEX_" ++) $ concat
-    [ [ "GHC"    | target == GhcTarget ]
-    , [ "LATIN1" | encoding == Latin1  ]
-    , [ "NOPRED" | usespreds == DoesntUsePreds  ]
-    , [ "DEBUG"  | OptDebugParser `elem` cli  ]
-    ]
+  case target of 
+    KokaTarget -> []
+    _ -> 
+      map ("ALEX_" ++) $ concat
+        [ [ "GHC"    | target == GhcTarget ]
+        , [ "LATIN1" | encoding == Latin1  ]
+        , [ "NOPRED" | usespreds == DoesntUsePreds  ]
+        , [ "DEBUG"  | OptDebugParser `elem` cli  ]
+        ]
 
 infoStart :: FilePath -> FilePath -> IO (String -> IO (), IO ())
 infoStart x_file info_file = do
@@ -491,6 +515,7 @@ initREEnv = Map.empty
 data CLIFlags
   = OptDebugParser
   | OptGhcTarget
+  | OptKokaTarget
   | OptOutputFile FilePath
   | OptInfoFile (Maybe FilePath)
   | OptTabSize String
@@ -512,6 +537,8 @@ argInfo  = [
         "look in DIR for template files",
    Option ['g'] ["ghc"]    (NoArg OptGhcTarget)
         "use GHC extensions",
+   Option ['k'] ["koka"]    (NoArg OptKokaTarget)
+        "use Koka language",
    Option ['l'] ["latin1"]    (NoArg OptLatin1)
         "generated lexer will use the Latin-1 encoding instead of UTF-8",
    Option ['s'] ["tab-size"] (ReqArg OptTabSize "NUMBER")

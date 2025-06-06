@@ -8,6 +8,13 @@ It is similar to the tools "lex" and "flex" for C/C++.
 
 Share and enjoy!
 
+> [!WARNING]
+> This repository is a WIP.
+> The plan is to reuse the generators from the Haskell language, but generate Koka code.
+> Eventually we might transition to a more optimized workflow for Koka, without all of the extras we don't need. 
+> Documentation is from the Haskell project
+> Every once in a while we should sync from the upstream Haskell project, the methodology for doing so is still being determined.
+
 ## Documentation
 
 Documentation is hosted on [Read the Docs](https://haskell-alex.readthedocs.io):

@@ -41,6 +41,7 @@ data-dir: data/
 data-files:
         AlexTemplate.hs
         AlexWrappers.hs
+        AlexTemplate.kk
 
 extra-source-files:
         CHANGELOG.md

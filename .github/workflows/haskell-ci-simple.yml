@@ -1,0 +1,95 @@
+name: Build
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  main:
+    name: GHC ${{ matrix.ghc }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        ghc:
+          - "8.0.2"
+          # Andreas, 2023-06-20, reduce CI load, keep only extremal GHC versions
+          # - "8.2.2"
+          # - "8.4.4"
+          # - "8.6.5"
+          # - "8.8.4"
+          # - "8.10.7"
+          # - "9.0.2"
+          # - "9.2.8"
+          - "9.4.8"
+          - "9.6.4"
+          - "9.8.1"
+        include:
+          - ghc: "9.8.1"
+            os:  macos-latest
+          - ghc: "9.8.1"
+            os:  windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: haskell-actions/setup@v2
+      id: setup-haskell-cabal
+      with:
+        ghc-version: ${{ matrix.ghc }}
+        cabal-version: "latest"
+        cabal-update: true
+
+    - uses: actions/cache@v4
+      name: Cache cabal stuff
+      with:
+        path: |
+          ${{ steps.setup-haskell-cabal.outputs.cabal-store }}
+          dist-newstyle
+        key: ${{ runner.os }}-${{ matrix.ghc }}
+
+    - name: Versions
+      run: |
+        cabal --version
+
+    - name: Install alex & happy
+      run: |
+        cd ../
+        cabal install alex happy
+
+    - name: Unpack
+      run: |
+        cp src/Parser.y src/Parser.y.boot
+        cp src/Scan.x src/Scan.x.boot
+        cabal sdist --ignore-project --output-directory .
+        cabal get alex-*.tar.gz
+
+    - name: Build
+      run: |
+        cd alex-*/
+        cabal build all --enable-tests --enable-benchmarks
+
+    - name: Test
+      run: |
+        cd alex-*/
+        ALEX="$(cabal list-bin alex)"
+        export ALEX
+        cabal run --enable-tests alex:test:tests
+
+    - name: Haddock
+      run: |
+        cd alex-*/
+        cabal haddock --disable-documentation --haddock-all all
+
+    - name: Cabal check
+      run: |
+        cd alex-*/
+        cabal check
