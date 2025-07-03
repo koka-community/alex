@@ -20,9 +20,10 @@ module CharSet (
   Byte,
   ByteSet,
   byteSetSingleton,
-  byteRanges,
+  -- byteRanges,
   byteSetRange,
-
+  charSetElems,
+  charSetElem,
   CharSet, -- abstract
   emptyCharSet,
   charSetSingleton,
@@ -105,19 +106,25 @@ byteSetToArray set = array (minBound, maxBound) [(c, rSetHas set c) | c <- bytes
 byteSetElems :: ByteSet -> [Byte]
 byteSetElems set = filter (rSetHas set) bytes
 
-charToRanges :: Encoding -> CharSet -> [Utf8Range]
-charToRanges Latin1 =
-    map (fmap ((:| []) . fromIntegral . ord)) -- Span [Byte]
-  . catMaybes
-  . fmap (charRangeToCharSpan False)
-  . rSetRanges
-charToRanges UTF8 =
-    concat                  -- Span [Byte]
-  . fmap toUtfRange         -- [Span [Byte]]
-  . fmap (fmap UTF8.encode) -- Span [Byte]
-  . catMaybes
-  . fmap (charRangeToCharSpan True)
-  . rSetRanges
+charSetElems :: CharSet -> [Char]
+charSetElems set = [c | c <- [minBound..maxBound], rSetHas set c]
+
+charSetElem :: CharSet -> Char -> Bool
+charSetElem set c = rSetHas set c
+
+-- charToRanges :: Encoding -> CharSet -> [CharRange]
+-- charToRanges Latin1 =
+--     map (fmap ((:| []) . fromIntegral . ord)) -- Span [Byte]
+--   . catMaybes
+--   . fmap (charRangeToCharSpan False)
+--   . rSetRanges
+-- charToRanges UTF8 =
+-- concat                  -- Span [Byte]
+-- . fmap toUtfRange         -- [Span [Byte]]
+-- . fmap (fmap UTF8.encode) -- Span [Byte]
+-- . catMaybes
+-- . fmap (charRangeToCharSpan True)
+-- . rSetRanges
 
 -- | Turns a range of characters expressed as a pair of UTF-8 byte sequences into a set of ranges, in which each range of the resulting set is between pairs of sequences of the same length
 toUtfRange :: Span (List1 Byte) -> [Span (List1 Byte)]
@@ -158,8 +165,8 @@ charRangeToCharSpan uni (Range x y) = Just (Span (l x) (h y))
             BoundaryAboveAll | uni -> chr 0x10ffff
                              | otherwise -> chr 0xff
 
-byteRanges :: Encoding -> CharSet -> [(List1 Byte, List1 Byte)]
-byteRanges enc = fmap byteRangeToBytePair . charToRanges enc
+-- byteRanges :: Encoding -> CharSet -> [(List1 Byte, List1 Byte)]
+-- byteRanges enc = fmap byteRangeToBytePair . charToRanges enc
 
 byteSetRange :: Byte -> Byte -> ByteSet
 byteSetRange c1 c2 = makeRangedSet [Range (BoundaryBelow c1) (BoundaryAbove c2)]

@@ -43,7 +43,7 @@ type NFA = Array SNum NState
 data NState = NSt {
  nst_accs :: [Accept Code],
  nst_cl   :: [SNum],
- nst_outs :: [(ByteSet,SNum)]
+ nst_outs :: [(CharSet,SNum)]
  }
 
 -- Debug stuff
@@ -191,52 +191,58 @@ newState = N $ \s n _ -> (s+1,n,s)
 getEncoding :: NFAM Encoding
 getEncoding = N $ \s n e -> (s,n,e)
 
-anyBytes :: SNum -> Int -> SNum -> NFAM ()
-anyBytes from 0 to = epsilonEdge from to
-anyBytes from n to = do
-        s <- newState
-        byteEdge from (byteSetRange 0 0xff) s
-        anyBytes s (n-1) to
+-- anyBytes :: SNum -> Int -> SNum -> NFAM ()
+-- anyBytes from 0 to = epsilonEdge from to
+-- anyBytes from n to = do
+--         s <- newState
+--         byteEdge from (byteSetRange 0 0xff) s
+--         anyBytes s (n-1) to
 
-bytesEdge :: SNum -> [Byte] -> [Byte] -> SNum -> NFAM ()
-bytesEdge from [] [] to = epsilonEdge from to
-bytesEdge from [x] [y] to = byteEdge from (byteSetRange x y) to -- (OPTIMISATION)
-bytesEdge from (x:xs) (y:ys) to
-    | x == y = do
-        s <- newState
-        byteEdge from (byteSetSingleton x) s
-        bytesEdge s xs ys to
-    | x < y = do
-        do s <- newState
-           byteEdge from (byteSetSingleton x) s
-           bytesEdge s xs (fmap (const 0xff) ys) to
+-- bytesEdge :: SNum -> [Byte] -> [Byte] -> SNum -> NFAM ()
+-- bytesEdge from [] [] to = epsilonEdge from to
+-- bytesEdge from [x] [y] to = byteEdge from (byteSetRange x y) to -- (OPTIMISATION)
+-- bytesEdge from (x:xs) (y:ys) to
+--     | x == y = do
+--         s <- newState
+--         byteEdge from (byteSetSingleton x) s
+--         bytesEdge s xs ys to
+--     | x < y = do
+--         do s <- newState
+--            byteEdge from (byteSetSingleton x) s
+--            bytesEdge s xs (fmap (const 0xff) ys) to
 
-        do t <- newState
-           byteEdge from (byteSetSingleton y) t
-           bytesEdge t (fmap (const 0x00) xs) ys to
+--         do t <- newState
+--            byteEdge from (byteSetSingleton y) t
+--            bytesEdge t (fmap (const 0x00) xs) ys to
 
-        when ((x+1) <= (y-1)) $ do
-           u <- newState
-           byteEdge from (byteSetRange (x+1) (y-1)) u
-           anyBytes u (length xs) to
-bytesEdge _ _ _ _ = undefined -- hide compiler warning
+--         when ((x+1) <= (y-1)) $ do
+--            u <- newState
+--            byteEdge from (byteSetRange (x+1) (y-1)) u
+--            anyBytes u (length xs) to
+-- bytesEdge _ _ _ _ = undefined -- hide compiler warning
 
 charEdge :: SNum -> CharSet -> SNum -> NFAM ()
 charEdge from charset to = do
   -- trace ("charEdge: " ++ (show $ charset) ++ " => " ++ show (byteRanges charset)) $
-  e <- getEncoding
-  forM_ (byteRanges e charset) $ \ (xs, ys) -> do
-    bytesEdge from (List1.toList xs) (List1.toList ys) to
+  -- e <- getEncoding
+  N $ \s n _ -> (s, addEdge n, ())
+  where addEdge n =
+          case Map.lookup from n of
+            Nothing ->
+                Map.insert from (NSt [] [] [(charset,to)]) n
+            Just (NSt acc eps trans) ->
+                Map.insert from (NSt acc eps ((charset,to):trans)) n
+    -- bytesEdge from (List1.toList xs) (List1.toList ys) to
 
-byteEdge :: SNum -> ByteSet -> SNum -> NFAM ()
-byteEdge from charset to = N $ \s n _ -> (s, addEdge n, ())
- where
-   addEdge n =
-     case Map.lookup from n of
-       Nothing ->
-           Map.insert from (NSt [] [] [(charset,to)]) n
-       Just (NSt acc eps trans) ->
-           Map.insert from (NSt acc eps ((charset,to):trans)) n
+-- byteEdge :: SNum -> ByteSet -> SNum -> NFAM ()
+-- byteEdge from charset to = N $ \s n _ -> (s, addEdge n, ())
+--  where
+--    addEdge n =
+--      case Map.lookup from n of
+--        Nothing ->
+--            Map.insert from (NSt [] [] [(charset,to)]) n
+--        Just (NSt acc eps trans) ->
+--            Map.insert from (NSt acc eps ((charset,to):trans)) n
 
 epsilonEdge :: SNum -> SNum -> NFAM ()
 epsilonEdge from to

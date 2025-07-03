@@ -121,16 +121,16 @@ nfa2pdfa nfa pdfa (ss:umkd)
         -- for each character, the set of states that character would take
         -- us to from the current set of states in the NFA.
         ss_outs :: [(Int, StateSet)]
-        ss_outs = [ (fromIntegral ch, mk_ss nfa ss')
-                  | ch  <- byteSetElems $ setUnions [p | (p,_) <- outs],
-                    let ss'  = [ s' | (p,s') <- outs, byteSetElem p ch ],
+        ss_outs = [ (fromEnum ch, mk_ss nfa ss')
+                  | ch  <- charSetElems $ setUnions [p | (p,_) <- outs],
+                    let ss'  = [ s' | (p,s') <- outs, charSetElem p ch ],
                     not (null ss')
                   ]
 
         rctx_sss = [ mk_ss nfa [s]
                    | Acc _ _ _ (RightContextRExp s) <- accs ]
 
-        outs :: [(ByteSet,SNum)]
+        outs :: [(CharSet,SNum)]
         outs =  [ out | s <- ss, out <- nst_outs (nfa ! s) ]
 
         accs = sort_accs [ acc | s <- ss, acc <- nst_accs (nfa ! s) ]
