@@ -127,20 +127,20 @@ charSetElem set c = rSetHas set c
 -- . rSetRanges
 
 -- | Turns a range of characters expressed as a pair of UTF-8 byte sequences into a set of ranges, in which each range of the resulting set is between pairs of sequences of the same length
-toUtfRange :: Span (List1 Byte) -> [Span (List1 Byte)]
-toUtfRange (Span x y) = List1.toList $ fix x y
+-- toUtfRange :: Span (List1 Byte) -> [Span (List1 Byte)]
+-- toUtfRange (Span x y) = List1.toList $ fix x y
 
-fix :: List1 Byte -> List1 Byte -> List1 (Span (List1 Byte))
-fix x y
-    | length x == length y = [Span x y]
-    | length x == 1 = Span x [0x7F] <| fix [0xC2,0x80] y
-    | length x == 2 = Span x [0xDF,0xBF] <| fix [0xE0,0x80,0x80] y
-    | length x == 3 = Span x [0xEF,0xBF,0xBF] <| fix [0xF0,0x80,0x80,0x80] y
-    | otherwise = error "fix: incorrect input given"
+-- fix :: List1 Byte -> List1 Byte -> List1 (Span (List1 Byte))
+-- fix x y
+--     | length x == length y = [Span x y]
+--     | length x == 1 = Span x [0x7F] <| fix [0xC2,0x80] y
+--     | length x == 2 = Span x [0xDF,0xBF] <| fix [0xE0,0x80,0x80] y
+--     | length x == 3 = Span x [0xEF,0xBF,0xBF] <| fix [0xF0,0x80,0x80,0x80] y
+--     | otherwise = error "fix: incorrect input given"
 
 
-byteRangeToBytePair :: Span a -> (a, a)
-byteRangeToBytePair (Span x y) = (x, y)
+-- byteRangeToBytePair :: Span a -> (a, a)
+-- byteRangeToBytePair (Span x y) = (x, y)
 
 data Span a = Span a a -- lower bound inclusive, higher bound exclusive
                        -- (SDM: upper bound inclusive, surely?)
