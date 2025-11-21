@@ -88,7 +88,9 @@ outputDFA target _ _ scheme dfa
             . str "\n  ]"
     
     formatCArray contents = 
-      str " { " . interleave_shows (str ", ") contents . str " }" 
+      str "{" . interleave_shows (str ",") contents . str "}" 
+    formatJSArray contents = 
+      str "[" . interleave_shows (str ",") contents . str "]" 
 
     formatKokaList tp contents =
         case target of 
@@ -102,6 +104,7 @@ outputDFA target _ _ scheme dfa
         . str "  c inline \"kk_intx_t arr[] = " . formatCArray (map shows ints) . str ";\\n"
         . str "kk_vector_from_cintarray(arr, " . str (show $ length ints) . str ", kk_context())\""
         . nl
+        . str "  js inline \"" . formatJSArray (map shows ints) .  str "\""
       GhcTarget ->
           str nm . str " :: AlexAddr\n"
         . str nm . str " = AlexA#\n"
