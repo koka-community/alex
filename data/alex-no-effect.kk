@@ -7,18 +7,18 @@
 // -----------------------------------------------------------------------------
 // Main lexing routines
 
-type alexReturn
+type alex-return
   AlexEOF
-  AlexError(i: alexInput)
-  AlexSkip(i: alexInput, n: int)
-  AlexToken(i: alexInput, n: int, a: action) // a is the action type
+  AlexError(i: alex-input)
+  AlexSkip(i: alex-input, n: int)
+  AlexToken(i: alex-input, n: int, a: action) // a is the action type
 
 
 // alexScan :: AlexInput -> StartCode -> AlexReturn a
-fun alexScan(input: alexInput, sc: int): <%effectspure|e> alexReturn
+fun alexScan(input: alex-input, sc: int): <%effectspure|e> alex-return
   alexScanUser(Nothing, input, sc)
 
-fun alexScanUser(user: maybe<alexUser>, input: alexInput, sc: int): <%effectspure|e> alexReturn
+fun alexScanUser(user: maybe<alex-user>, input: alex-input, sc: int): <%effectspure|e> alex-return
   match alex_scan_tkn(user, input, 0, input, sc, AlexNone)
     (AlexNone, input__') ->
       match alexGetByte(input)
@@ -33,8 +33,8 @@ fun alexScanUser(user: maybe<alexUser>, input: alexInput, sc: int): <%effectspur
 
 // Push the input through the DFA, remembering the most recent accepting
 // state it encountered.
-fun alex_scan_tkn(user__:maybe<alexUser>, orig_input:alexInput, len:int, input__:alexInput, s: int, last_acc: alexLastAcc): <%effectspure|e> (alexLastAcc, alexInput)
-  fun check_accs(acc: alexAcc<<%effects|e>>): <%effects|e> alexLastAcc
+fun alex_scan_tkn(user__:maybe<alex-user>, orig_input:alex-input, len:int, input__:alex-input, s: int, last_acc: alex-last-acc): <%effectspure|e> (alex-last-acc, alex-input)
+  fun check_accs(acc: alex-acc<<%effects|e>>): <%effects|e> alex-last-acc
     match acc
       AlexAccNone -> last_acc
       AlexAcc(a) -> AlexLastAcc(a, input__, len)
@@ -65,40 +65,40 @@ fun alex_scan_tkn(user__:maybe<alexUser>, orig_input:alexInput, len:int, input__
               _ -> alex_scan_tkn(user__, orig_input, len + 1, new_input, new_s, new_acc)
  
 
-type alexLastAcc
+type alex-last-acc
   AlexNone
-  AlexLastAcc(i: int, a: alexInput, n: int)
-  AlexLastSkip(a: alexInput, n: int)
+  AlexLastAcc(i: int, a: alex-input, n: int)
+  AlexLastSkip(a: alex-input, n: int)
 
-type alexAcc<e>
+type alex-acc<e>
   AlexAccNone
   AlexAcc(i: int)
   AlexAccSkip
-  AlexAccPred(i: int, pred: alexAccPred<e>, acc: alexAcc<e>)
-  AlexAccSkipPred(pred: alexAccPred<e>, acc: alexAcc<e>)
+  AlexAccPred(i: int, pred: alex-acc-pred<e>, acc: alex-acc<e>)
+  AlexAccSkipPred(pred: alex-acc-pred<e>, acc: alex-acc<e>)
 
-alias alexAccPred<e> = (maybe<alexUser>, alexInput, int, alexInput) -> e bool;
+alias alex-acc-pred<e> = (maybe<alex-user>, alex-input, int, alex-input) -> e bool;
 
 // -----------------------------------------------------------------------------
 // Predicates on a rule
 
-inline fun alexAndPred(p1: alexAccPred<e>, p2: alexAccPred<e>, user__: maybe<alexUser>, in1: alexInput, len: int, in2: alexInput): e bool
+inline fun alexAndPred(p1: alex-acc-pred<e>, p2: alex-acc-pred<e>, user__: maybe<alex-user>, in1: alex-input, len: int, in2: alex-input): e bool
   p1(user__, in1, len, in2) && p2(user__, in1, len, in2)
 
 // alexPrevCharIsPred :: Char -> AlexAccPred _
-inline fun alexPrevCharIs(c: char, _, input__: alexInput, _, _): <%effectspure> bool
+inline fun alexPrevCharIs(c: char, _, input__: alex-input, _, _): <%effectspure> bool
   c == alexInputPrevChar(input__)
 
-inline fun alexPrevCharMatches(f: (char) -> pure bool, _, input__: alexInput, _, _): <%effectspure> bool
+inline fun alexPrevCharMatches(f: (char) -> pure bool, _, input__: alex-input, _, _): <%effectspure> bool
   f(alexInputPrevChar(input__))
 
 // alexPrevCharIsOneOfPred :: Array Char Bool -> AlexAccPred _
-inline fun alexPrevCharIsOneOf(arr: list<char>, _, input__: alexInput, _, _): <%effectspure> bool
+inline fun alexPrevCharIsOneOf(arr: list<char>, _, input__: alex-input, _, _): <%effectspure> bool
   val prev = alexInputPrevChar(input__)
   arr.any(fn(c) c == prev)
 
 // alexRightContext :: Int -> AlexAccPred _
-inline fun alexRightContext(sc:int, user__: maybe<alexUser>, _, _, input__: alexInput): <%effectspure|e> bool
+inline fun alexRightContext(sc:int, user__: maybe<alex-user>, _, _, input__: alex-input): <%effectspure|e> bool
   match alex_scan_tkn(user__, input__, 0, input__, sc, AlexNone)
     (AlexNone, _) -> False
     _ -> True

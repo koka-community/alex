@@ -130,8 +130,8 @@ outputDFA target _ _ scheme dfa
                 . str listTpString . str ").vector;"
                 . nl
               where 
-                  tpString = if effects then " : vector<alexAcc>" else " : some<e> vector<alexAcc<e>>"
-                  listTpString = if effects then " : list<alexAcc>" else " : some<e> list<alexAcc<e>>"
+                  tpString = if effects then " : vector<alex-acc>" else " : some<e> vector<alex-acc<e>>"
+                  listTpString = if effects then " : list<alex-acc>" else " : some<e> list<alex-acc<e>>"
             _ -> error "KokaTarget requires Koka wrapper use %wrapper \"effect\" or %wrapper \"no-effect\""
         _ -> 
           str accept_nm . str " = "
