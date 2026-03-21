@@ -1,3 +1,10 @@
+## Changes in 3.5.4.1
+
+* New examples and fixes to the documentation (#284, #285, #286).
+* Tested with GHC 8.0 - 9.14.1.
+
+_Andreas Abel, 2026-03-21_
+
 ## Changes in 3.5.4.0
 
 * Fix [issue #277](https://github.com/haskell/alex/issues/277):
