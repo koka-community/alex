@@ -9,7 +9,7 @@ author: Chris Dornan and Simon Marlow
 maintainer: https://github.com/haskell/alex
 bug-reports: https://github.com/haskell/alex/issues
 stability: stable
-homepage: http://www.haskell.org/alex/
+homepage: https://github.com/haskell/alex
 synopsis: Alex is a tool for generating lexical analysers in Haskell
 description:
   Alex is a tool for generating lexical analysers in Haskell.

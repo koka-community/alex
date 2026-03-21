@@ -3,8 +3,8 @@
 About Alex
 ==========
 
-Alex can always be obtained from its `home page <https://www.haskell.org/alex>`__.
-The latest source code lives in the `git repository <https://github.com/haskell/alex>`__ on ``GitHub``.
+Alex written in Haskell.
+The source code lives in the `git repository <https://github.com/haskell/alex>`__ on ``GitHub``.
 
 Releases
 --------
