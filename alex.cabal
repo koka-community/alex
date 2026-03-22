@@ -1,7 +1,8 @@
 cabal-version: 1.18
 name: alex
-version: 3.5.4.1
--- don't forget updating changelog.md!
+version: 3.5.4.2
+-- Remember to update the changelog
+-- and to build dist tarball using `make sdist`!
 license: BSD3
 license-file: LICENSE
 copyright: (c) Chis Dornan, Simon Marlow
