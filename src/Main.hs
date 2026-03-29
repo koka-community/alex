@@ -31,7 +31,7 @@ import Data.List             ( intercalate, isSuffixOf, nub )
 import Data.Map              ( Map )
 import Data.Version          ( showVersion )
 import System.Console.GetOpt ( getOpt, usageInfo, ArgOrder(..), OptDescr(..), ArgDescr(..) )
-import System.Directory      ( removeFile )
+import System.Directory      ( removeFile, createDirectoryIfMissing )
 import System.Environment    ( getProgName, getArgs )
 import System.Exit           ( ExitCode(..), exitWith )
 import System.IO             ( stderr, Handle, IOMode(..), openFile, hClose, hPutStr, hPutStrLn
@@ -206,13 +206,20 @@ alex cli file basename script = do
    case target of
      KokaTarget -> do
        let dropExt f = reverse $ drop 1 $ dropWhile (/= '.') $ reverse f
+           takeDir f = let r = dropWhile (\c -> c /= '/' && c /= '\\') (reverse f)
+                       in if null r then "." else reverse r
            takeName f = reverse $ takeWhile (\c -> c /= '/' && c /= '\\') $ reverse f
-           inline_base = dropExt o_file ++ "-inline"
-           inline_name = takeName inline_base
-       writeFile (inline_base ++ ".h") $ unlines
+           out_dir = takeDir o_file
+           out_base = dropExt (takeName o_file)
+           inline_dir = out_dir ++ "/inline"
+           inline_path = inline_dir ++ "/" ++ out_base
+           -- Koka uses forward slashes in extern import paths on all platforms
+           inline_ref = "inline/" ++ out_base
+       createDirectoryIfMissing True inline_dir
+       writeFile (inline_path ++ ".h") $ unlines
          [ "kk_vector_t kk_vector_from_cintarray(kk_intx_t* carray, kk_ssize_t len, kk_context_t* ctx);"
          ]
-       writeFile (inline_base ++ ".c") $ unlines
+       writeFile (inline_path ++ ".c") $ unlines
          [ "kk_vector_t kk_vector_from_cintarray(kk_intx_t* carray, kk_ssize_t len, kk_context_t* ctx) {"
          , "  kk_box_t* array;"
          , "  kk_vector_t vec = kk_vector_alloc_uninit(len, &array, ctx);"
@@ -224,7 +231,7 @@ alex cli file basename script = do
          ]
        hPutStrLn out_h ""
        hPutStrLn out_h "extern import"
-       hPutStrLn out_h $ "  c file \"" ++ inline_name ++ "\""
+       hPutStrLn out_h $ "  c file \"" ++ inline_ref ++ "\""
        hPutStrLn out_h ""
      _ -> return ()
 
