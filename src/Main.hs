@@ -202,6 +202,32 @@ alex cli file basename script = do
 
    hPutStr out_h (importsToInject target cli)
 
+   -- For Koka target, generate companion C inline files for alex runtime helpers
+   case target of
+     KokaTarget -> do
+       let dropExt f = reverse $ drop 1 $ dropWhile (/= '.') $ reverse f
+           takeName f = reverse $ takeWhile (\c -> c /= '/' && c /= '\\') $ reverse f
+           inline_base = dropExt o_file ++ "-inline"
+           inline_name = takeName inline_base
+       writeFile (inline_base ++ ".h") $ unlines
+         [ "kk_vector_t kk_vector_from_cintarray(kk_intx_t* carray, kk_ssize_t len, kk_context_t* ctx);"
+         ]
+       writeFile (inline_base ++ ".c") $ unlines
+         [ "kk_vector_t kk_vector_from_cintarray(kk_intx_t* carray, kk_ssize_t len, kk_context_t* ctx) {"
+         , "  kk_box_t* array;"
+         , "  kk_vector_t vec = kk_vector_alloc_uninit(len, &array, ctx);"
+         , "  for (kk_ssize_t i = 0; i < len; i++) {"
+         , "    array[i] = kk_integer_box(kk_integer_from_int(carray[i], ctx), ctx);"
+         , "  }"
+         , "  return vec;"
+         , "}"
+         ]
+       hPutStrLn out_h ""
+       hPutStrLn out_h "extern import"
+       hPutStrLn out_h $ "  c file \"" ++ inline_name ++ "\""
+       hPutStrLn out_h ""
+     _ -> return ()
+
    -- add the wrapper, if necessary
    case wrapperCppDefs scheme of
      Nothing -> return ()
