@@ -217,10 +217,11 @@ alex cli file basename script = do
            inline_ref = "inline/" ++ out_base
        createDirectoryIfMissing True inline_dir
        writeFile (inline_path ++ ".h") $ unlines
-         [ "kk_vector_t kk_vector_from_cintarray(kk_intx_t* carray, kk_ssize_t len, kk_context_t* ctx);"
+         [ "static kk_vector_t kk_alex_vector_from_cintarray(kk_intx_t* carray, kk_ssize_t len, kk_context_t* ctx);"
          ]
        writeFile (inline_path ++ ".c") $ unlines
-         [ "kk_vector_t kk_vector_from_cintarray(kk_intx_t* carray, kk_ssize_t len, kk_context_t* ctx) {"
+         [ "// static so it cannot clash with std/core-extras' kk_vector_from_cintarray when both are linked"
+         , "static kk_vector_t kk_alex_vector_from_cintarray(kk_intx_t* carray, kk_ssize_t len, kk_context_t* ctx) {"
          , "  kk_box_t* array;"
          , "  kk_vector_t vec = kk_vector_alloc_uninit(len, &array, ctx);"
          , "  for (kk_ssize_t i = 0; i < len; i++) {"
