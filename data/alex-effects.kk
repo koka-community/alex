@@ -117,9 +117,9 @@ fun alex-next(a: alex-scan-state): (maybe<alex-next>)
   match a
     AlexScanState(states, seek, _, acc, _, curr, start, end, last-accept, action-info) ->
       match seek.next()
-        Just((c, slice')) ->
-          Just(AlexNext(AlexScanState(states, slice', seek, acc, curr, c.int, start, end, last-accept, action-info), c.int))
-        Nothing ->  Nothing
+        Just2(c, slice') ->
+          Just(AlexNext(AlexScanState(states, slice', seek, acc, curr, c, start, end, last-accept, action-info), c))
+        Nothing2 -> Nothing
 
 fun do-alex-accept(a: alex-scan-state, s: int) // Sets the accepting state
   match a
@@ -141,10 +141,10 @@ fun recognize(a: alex-scan-state, restart: bool)
       match last-accept
         AlexAccResNone ->  
           match seek.next() // Check if we are at the end of the input
-            Nothing -> 
+            Nothing2 ->
               // EOF
               AlexScanState(states, seek, current, acc, prev, curr, start, end, last-accept, action-info)
-            Just ->
+            Just2 ->
               if restart then // Try skipping the first character, and start again
                 AlexScanState(states, seek, seek, seek.truncate(), 0, 0, end, end, AlexAccResNone, action-info)
               else // Skip?
@@ -213,8 +213,10 @@ fun alex-scan-tokens(s: int): _ ()
     Just(ord_c) ->
       val base = alex-base.unsafe-idx(s.ssize_t)
       val offset = base + ord_c
-      val check  = alex-check.unsafe-idx(offset.ssize_t)
-      val new_s = if offset >= 0 && check == ord_c
+      // guard the offset before reading: unlike GHC Addr# reads, an out-of-bounds
+      // unsafe-idx can fault (the check table is not padded for all base+byte offsets)
+      val check  = if offset >= 0 && offset < alex-check.length then alex-check.unsafe-idx(offset.ssize_t) else -1
+      val new_s = if check == ord_c
                       then alex-table.unsafe-idx(offset.ssize_t)
                       else alex-deflt.unsafe-idx(s.ssize_t)
       match new_s
